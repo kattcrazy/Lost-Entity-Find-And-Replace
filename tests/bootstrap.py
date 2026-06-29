@@ -62,6 +62,7 @@ ha_components.homeassistant.scene = _ensure_module(
 )
 ha_components.homeassistant.scene.DOMAIN = "scene"
 ha_components.lovelace = _ensure_module("homeassistant.components.lovelace")
+ha_components.lovelace.DOMAIN = "lovelace"
 ha_components.lovelace.const = _ensure_module("homeassistant.components.lovelace.const")
 ha_components.lovelace.const.EVENT_LOVELACE_UPDATED = "lovelace_updated"
 
@@ -82,6 +83,13 @@ class _HomeAssistantError(Exception):
 
 
 ha_exceptions.HomeAssistantError = _HomeAssistantError
+
+
+class _ConfigNotFound(_HomeAssistantError):
+    """Minimal stand-in for Lovelace ConfigNotFound."""
+
+
+ha_components.lovelace.const.ConfigNotFound = _ConfigNotFound
 
 ha.config_entries = ha_config_entries
 ha.core = ha_core
