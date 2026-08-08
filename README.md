@@ -2,7 +2,7 @@
 
 Detect lost entity references after entity ID changes in Home Assistant. When you change an entity ID (for example `sensor.door` -> `sensor.window`), Lost Entity Finder finds automations, scripts, scenes, dashboards, groups, helpers, and yaml files that still use the old ID and raises one repair per changed entity ID with direct links to each location, along with options to ignore or auto-replace in bulk.
 
-*Lost Entity Finder only handles entity ID changes. It does not handle deleted entities, unavailable entities, or general missing-entity audits.*
+*Lost Entity Finder only handles entity ID changes. It does not handle deleted entities or unavailable entities*
 
 <img width="402"  alt="image" src="https://github.com/user-attachments/assets/98351145-6ec8-46fd-9057-d2b98d69a7f9" />
 <img width="382" alt="image" src="https://github.com/user-attachments/assets/eb268543-cb18-464d-80ce-4c96b8d5f6b8" />
@@ -29,7 +29,7 @@ Detect lost entity references after entity ID changes in Home Assistant. When yo
 
 On setup you can enable Auto-Replace (bulk fix). Default is off. Change this anytime via Settings → Devices & services → Lost Entity Finder → Configure.
 
-Some types of helpers, YAML-only config, and third-party `.storage` files such as HACS intergrations will require manual updating. These are flagged in the repair and cannot be auto-replaced.
+Some types of helpers, YAML-only config, and third-party `.storage` files such as HACS integrations will require manual updating. These are flagged in the repair and cannot be auto-replaced. **Auto Replace All Lost Entity Repairs** skips repairs that are manual-only.
 
 ### Entities
 
@@ -45,6 +45,8 @@ Lost Entity Finder adds the following entities:
 ### Repairs
 
 After an entity ID change, open Settings → System → Repairs. Each lost entity ID will have a repair listing all locations that still reference it.
+
+When Auto-Replace is enabled, **Auto-Replace** is the default action. If some references can be updated automatically and others cannot, the repair runs Auto-Replace first, then shows the remaining manual locations with **Mark as completed** (default) or **Ignore**. Manual-only repairs offer the same choices after you update the linked locations.
 
 ### Services
 
