@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 import voluptuous as vol
 
 from homeassistant import data_entry_flow
@@ -17,7 +15,11 @@ from .manager import EntityFinderManager
 from .models import ReferenceHit
 from .replacer import async_apply_replace, async_preview_replace
 from .scanner import async_scan_tracked_references
-from .util import format_references_for_repair, has_auto_replaceable_hits
+from .util import (
+    format_references_for_repair,
+    get_manual_hits,
+    has_auto_replaceable_hits,
+)
 
 
 async def async_create_fix_flow(
@@ -46,7 +48,7 @@ class LostEntityReferencesRepairFlow(RepairsFlow):
         self._new_entity_id = str(data.get("new_entity_id", ""))
         self._preview = ""
         self._result_summary = ""
-        self._hits = []
+        self._hits: list[ReferenceHit] = []
 
     def _get_manager(self) -> EntityFinderManager | None:
         """Return the active manager."""
@@ -97,10 +99,24 @@ class LostEntityReferencesRepairFlow(RepairsFlow):
             "references": references,
             "manual_note": f"{manual_note}\n\n" if manual_note else "",
             "bulk_fix_hint": bulk_fix_hint,
+            "result_summary": "",
         }
         if extra:
             placeholders.update(extra)
         return placeholders
+
+    def _manual_completion_schema(self) -> vol.Schema:
+        """Return schema for manual completion actions."""
+        return vol.Schema(
+            {
+                vol.Required("action", default="mark_completed"): vol.In(
+                    {
+                        "mark_completed": "Mark as completed",
+                        "ignore": "Ignore",
+                    }
+                )
+            }
+        )
 
     async def async_step_init(
         self, user_input: dict[str, str] | None = None
@@ -125,15 +141,21 @@ class LostEntityReferencesRepairFlow(RepairsFlow):
                     return await self.async_step_manual_only()
                 return await self.async_step_preview()
 
-        actions: dict[str, str] = {"ignore": "Ignore"}
+        actions: dict[str, str] = {}
+        default_action = "ignore"
         if self._can_offer_auto_replace(self._hits):
             actions["auto_replace"] = "Auto-Replace"
+            default_action = "auto_replace"
         else:
             actions["manual"] = "Close (update manually)"
+            default_action = "manual"
+        actions["ignore"] = "Ignore"
 
         return self.async_show_form(
             step_id="choose_action",
-            data_schema=vol.Schema({vol.Required("action"): vol.In(actions)}),
+            data_schema=vol.Schema(
+                {vol.Required("action", default=default_action): vol.In(actions)}
+            ),
             description_placeholders=self._placeholders(self._hits),
         )
 
@@ -142,15 +164,50 @@ class LostEntityReferencesRepairFlow(RepairsFlow):
     ) -> data_entry_flow.FlowResult:
         """Show manual-only guidance when nothing can be auto-replaced."""
         if user_input is not None:
-            return self.async_create_entry(title="", data={})
+            action = user_input.get("action")
+            if action == "ignore":
+                return await self.async_step_ignore()
+            if action == "mark_completed":
+                return await self.async_step_mark_completed()
 
         if not self._hits:
             self._hits = await self._async_get_hits()
 
         return self.async_show_form(
             step_id="manual_only",
-            data_schema=vol.Schema({}),
+            data_schema=self._manual_completion_schema(),
             description_placeholders=self._placeholders(self._hits),
+        )
+
+    async def async_step_manual_remaining(
+        self, user_input: dict[str, str] | None = None
+    ) -> data_entry_flow.FlowResult:
+        """Handle remaining manual references after Auto-Replace."""
+        if user_input is not None:
+            action = user_input.get("action")
+            if action == "ignore":
+                return await self.async_step_ignore()
+            if action == "mark_completed":
+                return await self.async_step_mark_completed()
+
+        if not self._hits:
+            self._hits = await self._async_get_hits()
+
+        manual_hits = get_manual_hits(self._hits)
+        references, manual_note = format_references_for_repair(manual_hits)
+        result_summary = (
+            f"{self._result_summary}\n\n" if self._result_summary else ""
+        )
+        return self.async_show_form(
+            step_id="manual_remaining",
+            data_schema=self._manual_completion_schema(),
+            description_placeholders={
+                "old_entity_id": self._old_entity_id,
+                "new_entity_id": self._new_entity_id,
+                "references": references,
+                "manual_note": f"{manual_note}\n\n" if manual_note else "",
+                "result_summary": result_summary,
+            },
         )
 
     async def async_step_ignore(
@@ -160,6 +217,19 @@ class LostEntityReferencesRepairFlow(RepairsFlow):
         manager = self._get_manager()
         if manager is not None:
             await manager.async_ignore(self._old_entity_id, issue_id=self._issue_id)
+        else:
+            ir.async_delete_issue(self._hass, DOMAIN, self._issue_id)
+        return self.async_create_entry(title="", data={})
+
+    async def async_step_mark_completed(
+        self, user_input: dict[str, str] | None = None
+    ) -> data_entry_flow.FlowResult:
+        """Mark manual reference updates as completed."""
+        manager = self._get_manager()
+        if manager is not None:
+            await manager.async_mark_completed(
+                self._old_entity_id, issue_id=self._issue_id
+            )
         else:
             ir.async_delete_issue(self._hass, DOMAIN, self._issue_id)
         return self.async_create_entry(title="", data={})
@@ -195,7 +265,6 @@ class LostEntityReferencesRepairFlow(RepairsFlow):
 
         if not self._hits:
             self._result_summary = "No references found to update for this repair."
-            ir.async_delete_issue(self._hass, DOMAIN, self._issue_id)
             return await self.async_step_result()
 
         if user_input is not None:
@@ -215,7 +284,6 @@ class LostEntityReferencesRepairFlow(RepairsFlow):
         """Apply Auto-Replace."""
         if not self._hits:
             self._result_summary = "No references found to update for this repair."
-            ir.async_delete_issue(self._hass, DOMAIN, self._issue_id)
             return await self.async_step_result()
 
         result = await async_apply_replace(
@@ -228,7 +296,11 @@ class LostEntityReferencesRepairFlow(RepairsFlow):
         manager = self._get_manager()
         if manager is not None:
             await manager.async_trigger_rescan()
-        ir.async_delete_issue(self._hass, DOMAIN, self._issue_id)
+            self._hits = await self._async_get_hits()
+
+        if get_manual_hits(self._hits):
+            return await self.async_step_manual_remaining()
+
         return await self.async_step_result()
 
     async def async_step_result(

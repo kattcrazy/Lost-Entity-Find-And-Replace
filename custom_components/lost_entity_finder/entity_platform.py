@@ -32,14 +32,9 @@ class EntityFinderEntityPlatform:
 
     def async_setup_sensor(self, async_add_entities) -> None:
         """Set up Lost Entity Find & Replace sensors."""
-        from .sensor import IgnoredLostEntitiesSensor, LostEntitiesSensor
+        from .sensor import IgnoredLostEntitiesSensor
 
-        async_add_entities(
-            [
-                LostEntitiesSensor(self.manager, self.entry),
-                IgnoredLostEntitiesSensor(self.manager, self.entry),
-            ]
-        )
+        async_add_entities([IgnoredLostEntitiesSensor(self.manager, self.entry)])
 
     def async_setup_buttons(self, async_add_entities) -> None:
         """Set up Lost Entity Find And Replace buttons."""

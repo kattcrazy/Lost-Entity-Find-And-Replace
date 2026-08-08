@@ -52,7 +52,7 @@ class EntityFinderButton(ButtonEntity):
 class IgnoreAllButton(EntityFinderButton):
     """Button to ignore all active lost entity repairs."""
 
-    _attr_name = "Ignore All"
+    _attr_name = "Ignore All Lost Entity Repairs"
     _attr_icon = "mdi:eye-off-outline"
 
     def __init__(self, manager: EntityFinderManager, entry: ConfigEntry) -> None:
@@ -68,7 +68,7 @@ class IgnoreAllButton(EntityFinderButton):
 class RestoreIgnoredButton(EntityFinderButton):
     """Button to restore all ignored lost entity repairs."""
 
-    _attr_name = "Restore Ignored"
+    _attr_name = "Restore Ignored Lost Entity Repairs"
     _attr_icon = "mdi:restore"
 
     def __init__(self, manager: EntityFinderManager, entry: ConfigEntry) -> None:
@@ -84,7 +84,7 @@ class RestoreIgnoredButton(EntityFinderButton):
 class AutoReplaceAllButton(EntityFinderButton):
     """Button to auto-replace all lost entity references."""
 
-    _attr_name = "Auto-Replace All"
+    _attr_name = "Auto Replace All Lost Entity Repairs"
     _attr_icon = "mdi:swap-horizontal"
 
     def __init__(self, manager: EntityFinderManager, entry: ConfigEntry) -> None:

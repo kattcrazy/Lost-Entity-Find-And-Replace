@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import ENTITY_IGNORED_LOST_ENTITIES, ENTITY_LOST_ENTITIES
+from .const import ENTITY_IGNORED_LOST_ENTITIES
 from .manager import EntityFinderManager
 
 if TYPE_CHECKING:
@@ -64,26 +64,10 @@ class _BaseCountSensor(SensorEntity):
         raise NotImplementedError
 
 
-class LostEntitiesSensor(_BaseCountSensor):
-    """Sensor reporting the number of active lost entity references."""
-
-    _attr_name = "Lost Entities"
-    _attr_icon = "mdi:database-search"
-
-    def __init__(self, manager: EntityFinderManager, entry: ConfigEntry) -> None:
-        """Initialize sensor."""
-        super().__init__(manager, entry)
-        self._attr_unique_id = f"{entry.entry_id}_{ENTITY_LOST_ENTITIES}"
-
-    def _get_count(self) -> int:
-        """Return current lost-entities count."""
-        return self._manager.get_lost_count()
-
-
 class IgnoredLostEntitiesSensor(_BaseCountSensor):
-    """Sensor reporting the number of ignored lost entity references."""
+    """Sensor reporting the number of ignored lost entity repairs."""
 
-    _attr_name = "Ignored Lost Entities"
+    _attr_name = "Ignored Lost Entity Repairs"
     _attr_icon = "mdi:eye-off-outline"
 
     def __init__(self, manager: EntityFinderManager, entry: ConfigEntry) -> None:

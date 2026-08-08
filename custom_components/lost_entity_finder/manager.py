@@ -21,7 +21,7 @@ from .const import DEBOUNCE_COOLDOWN, DOMAIN, TRANSLATION_KEY_LOST
 from .models import ReferenceHit
 from .scanner import async_scan_tracked_references
 from .store import EntityFinderStore
-from .util import format_references_for_repair, slugify_issue_id
+from .util import format_references_for_repair, has_auto_replaceable_hits, slugify_issue_id
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -272,6 +272,17 @@ class EntityFinderManager:
         ir.async_delete_issue(self.hass, DOMAIN, resolved_issue_id)
         self._async_notify_listeners()
 
+    async def async_mark_completed(
+        self, old_entity_id: str, issue_id: str | None = None
+    ) -> None:
+        """Mark a repair completed after manual reference updates."""
+        await self.store.async_remove_pending(old_entity_id)
+        resolved_issue_id = issue_id or slugify_issue_id(old_entity_id)
+        ir.async_delete_issue(self.hass, DOMAIN, resolved_issue_id)
+        self._current_hits.pop(old_entity_id, None)
+        self._awaiting_scan.discard(old_entity_id)
+        self._async_notify_listeners()
+
     async def async_ignore_all(self) -> None:
         """Ignore all active lost entity ID repairs."""
         for old_entity_id in self.get_lost_entity_ids():
@@ -293,14 +304,23 @@ class EntityFinderManager:
         from .replacer import async_apply_replace
 
         for old_entity_id in list(self.get_lost_entity_ids()):
-            pending = self.store.get_pending_changes()[old_entity_id]
             hits = self.get_hits_for_old_entity(old_entity_id)
-            await async_apply_replace(
-                self.hass,
-                hits,
-                old_entity_id,
-                pending.new_entity_id,
-            )
+            if not has_auto_replaceable_hits(hits):
+                continue
+
+            pending = self.store.get_pending_changes().get(old_entity_id)
+            if pending is None:
+                continue
+
+            try:
+                await async_apply_replace(
+                    self.hass,
+                    hits,
+                    old_entity_id,
+                    pending.new_entity_id,
+                )
+            except Exception:  # noqa: BLE001 - continue bulk run after per-entity failure
+                _LOGGER.exception("Auto-Replace All failed for %s", old_entity_id)
         await self.async_trigger_rescan()
 
     async def async_trigger_rescan(self) -> None:

@@ -37,11 +37,10 @@ Lost Entity Finder adds the following entities:
 
 | Entity | Type | Description |
 |--------|------|-------------|
-| Lost Entities | Sensor | Count of changed entity IDs that still have lost entity references |
-| Ignored Lost Entities | Sensor | Count of changed entity IDs that are currently ignored |
-| Ignore All | Button | Ignore all active lost-entity repairs |
-| Restore Ignored | Button | Clear all ignored lost-entity repairs and rescan |
-| Auto-Replace All | Button | Replace all lost entity references (entity only created if Auto-Replace is enabled) |
+| Ignored Lost Entity Repairs | Sensor | Count of lost entity repairs that are currently ignored |
+| Ignore All Lost Entity Repairs | Button | Ignore all active lost entity repairs |
+| Restore Ignored Lost Entity Repairs | Button | Clear all ignored lost entity repairs and rescan |
+| Auto Replace All Lost Entity Repairs | Button | Replace all auto-fixable lost entity references (only created if Auto-Replace is enabled) |
 
 ### Repairs
 

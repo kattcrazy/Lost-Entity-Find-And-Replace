@@ -163,6 +163,15 @@ def has_auto_replaceable_hits(hits: list[ReferenceHit]) -> bool:
     return any(hit.auto_replaceable for hit in dedupe_reference_hits(hits).values())
 
 
+def get_manual_hits(hits: list[ReferenceHit]) -> list[ReferenceHit]:
+    """Return reference hits that must be updated manually."""
+    return [
+        hit
+        for hit in dedupe_reference_hits(hits).values()
+        if not hit.auto_replaceable
+    ]
+
+
 def manual_reference_reason(hit: ReferenceHit) -> str:
     """Return a short reason why a reference must be updated manually."""
     if hit.resource_type == "storage":
