@@ -160,11 +160,13 @@ class EntityFinderManager:
                 await self.store.async_remove_pending(old_entity_id)
                 continue
 
-            if self.store.is_ignored(old_entity_id):
-                ir.async_ignore_issue(self.hass, DOMAIN, issue_id, True)
+            seen_issue_ids.add(issue_id)
+            if (
+                self.store.is_ignored(old_entity_id)
+                and self._issue_is_ignored_in_registry(issue_id)
+            ):
                 continue
 
-            seen_issue_ids.add(issue_id)
             references_md, manual_note = format_references_for_repair(references)
             bulk_fix_hint = (
                 ""
@@ -191,6 +193,8 @@ class EntityFinderManager:
                     "bulk_fix_hint": bulk_fix_hint,
                 },
             )
+            if self.store.is_ignored(old_entity_id):
+                ir.async_ignore_issue(self.hass, DOMAIN, issue_id, True)
 
         for issue_id in self._active_issue_ids - seen_issue_ids:
             ir.async_delete_issue(self.hass, DOMAIN, issue_id)
@@ -262,6 +266,11 @@ class EntityFinderManager:
         """Return latest scan hits for an old entity ID."""
         return list(self._current_hits.get(old_entity_id, []))
 
+    def _issue_is_ignored_in_registry(self, issue_id: str) -> bool:
+        """Return True when the repair issue is ignored in Home Assistant."""
+        entry = ir.async_get(self.hass).async_get_issue(DOMAIN, issue_id)
+        return entry is not None and entry.dismissed_version is not None
+
     async def async_ignore(
         self, old_entity_id: str, issue_id: str | None = None
     ) -> None:
@@ -269,7 +278,6 @@ class EntityFinderManager:
         await self.store.async_ignore(old_entity_id)
         resolved_issue_id = issue_id or slugify_issue_id(old_entity_id)
         ir.async_ignore_issue(self.hass, DOMAIN, resolved_issue_id, True)
-        ir.async_delete_issue(self.hass, DOMAIN, resolved_issue_id)
         self._async_notify_listeners()
 
     async def async_mark_completed(
@@ -289,10 +297,7 @@ class EntityFinderManager:
             await self.async_ignore(old_entity_id)
 
     async def async_restore_ignored(self) -> None:
-        """Restore all ignored lost entity ID repairs."""
-        for old_entity_id in self.store.get_ignored_entity_ids():
-            issue_id = slugify_issue_id(old_entity_id)
-            ir.async_ignore_issue(self.hass, DOMAIN, issue_id, False)
+        """Clear ignored tracking and rescan without changing HA ignore state."""
         await self.store.async_clear_ignored()
         await self.async_trigger_rescan()
 

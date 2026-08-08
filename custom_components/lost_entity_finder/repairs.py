@@ -109,8 +109,9 @@ class LostEntityReferencesRepairFlow(RepairsFlow):
         """Return schema for manual completion actions."""
         return vol.Schema(
             {
-                vol.Required("action", default="mark_completed"): vol.In(
+                vol.Required("action", default="fix_later"): vol.In(
                     {
+                        "fix_later": "Fix later",
                         "mark_completed": "Mark as completed",
                         "ignore": "Ignore",
                     }
@@ -169,6 +170,8 @@ class LostEntityReferencesRepairFlow(RepairsFlow):
                 return await self.async_step_ignore()
             if action == "mark_completed":
                 return await self.async_step_mark_completed()
+            if action == "fix_later":
+                return await self.async_step_fix_later()
 
         if not self._hits:
             self._hits = await self._async_get_hits()
@@ -189,6 +192,8 @@ class LostEntityReferencesRepairFlow(RepairsFlow):
                 return await self.async_step_ignore()
             if action == "mark_completed":
                 return await self.async_step_mark_completed()
+            if action == "fix_later":
+                return await self.async_step_fix_later()
 
         if not self._hits:
             self._hits = await self._async_get_hits()
@@ -232,6 +237,12 @@ class LostEntityReferencesRepairFlow(RepairsFlow):
             )
         else:
             ir.async_delete_issue(self._hass, DOMAIN, self._issue_id)
+        return self.async_create_entry(title="", data={})
+
+    async def async_step_fix_later(
+        self, user_input: dict[str, str] | None = None
+    ) -> data_entry_flow.FlowResult:
+        """Close the repair flow and keep the issue open for later."""
         return self.async_create_entry(title="", data={})
 
     async def async_step_auto_replace_disabled(

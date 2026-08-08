@@ -38,11 +38,12 @@ class EntityFinderEntityPlatform:
 
     def async_setup_buttons(self, async_add_entities) -> None:
         """Set up Lost Entity Find And Replace buttons."""
-        from .button import IgnoreAllButton, RestoreIgnoredButton
+        from .button import IgnoreAllButton, RescanLostEntitiesButton, RestoreIgnoredButton
 
         self._async_add_button_entities = async_add_entities
         async_add_entities(
             [
+                RescanLostEntitiesButton(self.manager, self.entry),
                 IgnoreAllButton(self.manager, self.entry),
                 RestoreIgnoredButton(self.manager, self.entry),
             ]

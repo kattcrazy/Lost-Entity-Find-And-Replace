@@ -9,7 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
 from ..models import ReferenceHit
-from ..util import extract_entities_from_value
+from ..util import ENTITY_ID_PATTERN, extract_entities_from_value
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -115,6 +115,12 @@ async def _async_extract_from_config_tree(
         for key, value in node.items():
             if key in SKIP_DOMAIN_CONFIG_KEYS:
                 continue
+            if (
+                isinstance(key, str)
+                and key in tracked
+                and ENTITY_ID_PATTERN.match(key)
+            ):
+                found.add(key)
             found |= await _async_extract_from_config_tree(hass, value, tracked)
         return found
 

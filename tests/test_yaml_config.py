@@ -97,6 +97,63 @@ class YamlConfigTreeTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(found, set())
 
+    async def test_extract_finds_entity_id_dict_keys(self) -> None:
+        """Entity IDs used as YAML mapping keys should be detected."""
+        config = {
+            "google_assistant": {
+                "project_id": "example",
+                "entity_config": {
+                    "light.spare_bulb_4": {
+                        "name": "Summer's Main Light",
+                        "room": "Summer's Room",
+                        "expose": True,
+                    }
+                },
+            }
+        }
+        found = await yaml_config._async_extract_from_config_tree(
+            self.hass, config, {"light.spare_bulb_4"}
+        )
+        self.assertEqual(found, {"light.spare_bulb_4"})
+
+    async def test_extract_finds_customize_entity_keys(self) -> None:
+        """homeassistant.customize entity keys should be detected."""
+        config = {
+            "homeassistant": {
+                "customize": {
+                    "sensor.old": {"friendly_name": "Old"},
+                }
+            }
+        }
+        found = await yaml_config._async_extract_from_config_tree(
+            self.hass, config, {"sensor.old"}
+        )
+        self.assertEqual(found, {"sensor.old"})
+
+    async def test_scan_finds_google_assistant_entity_config(self) -> None:
+        """Merged configuration should detect entity IDs used as mapping keys."""
+        merged_config = {
+            "google_assistant": {
+                "entity_config": {
+                    "light.spare_bulb_4": {
+                        "name": "Summer's Main Light",
+                        "expose": True,
+                    }
+                }
+            }
+        }
+        self.hass = MagicMock()
+
+        with patch.object(
+            yaml_config,
+            "_async_load_merged_configuration",
+            AsyncMock(return_value=merged_config),
+        ):
+            hits = await yaml_config.async_scan(self.hass, {"light.spare_bulb_4"})
+
+        self.assertIn("light.spare_bulb_4", hits)
+        self.assertEqual(hits["light.spare_bulb_4"][0].label, "configuration.yaml (google_assistant)")
+
     async def test_scan_finds_template_sensor_reference(self) -> None:
         """Merged configuration should surface YAML-only references."""
         merged_config = {

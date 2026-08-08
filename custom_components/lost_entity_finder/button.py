@@ -13,6 +13,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import (
     ENTITY_AUTO_REPLACE_ALL,
     ENTITY_IGNORE_ALL,
+    ENTITY_RESCAN,
     ENTITY_RESTORE_IGNORED,
 )
 from .manager import EntityFinderManager
@@ -47,6 +48,22 @@ class EntityFinderButton(ButtonEntity):
     def device_info(self) -> None:
         """Return None so the entity is not grouped under a device."""
         return None
+
+
+class RescanLostEntitiesButton(EntityFinderButton):
+    """Button to rescan for lost entity references."""
+
+    _attr_name = "Rescan for Lost Entity Repairs"
+    _attr_icon = "mdi:refresh"
+
+    def __init__(self, manager: EntityFinderManager, entry: ConfigEntry) -> None:
+        """Initialize button."""
+        super().__init__(manager, entry)
+        self._attr_unique_id = f"{entry.entry_id}_{ENTITY_RESCAN}"
+
+    async def async_press(self) -> None:
+        """Run a scan for lost entity references."""
+        await self._manager.async_trigger_rescan()
 
 
 class IgnoreAllButton(EntityFinderButton):
