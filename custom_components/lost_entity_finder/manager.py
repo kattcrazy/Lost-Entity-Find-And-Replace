@@ -137,7 +137,6 @@ class EntityFinderManager:
 
     async def _async_run_scan(self) -> None:
         """Scan tracked entity ID changes and sync repairs."""
-        await self.async_backfill_pending_from_registry()
         tracked = self.store.get_tracked_old_ids()
         if not tracked:
             await self._async_sync_repairs({})
@@ -145,26 +144,6 @@ class EntityFinderManager:
 
         self._current_hits = await async_scan_tracked_references(self.hass, tracked)
         await self._async_sync_repairs(self._current_hits)
-
-    async def async_backfill_pending_from_registry(self) -> None:
-        """Record entity ID changes already present in the entity registry."""
-        registry = er.async_get(self.hass)
-        for entry in registry.entities.values():
-            previous = entry.previous_entity_id
-            previous_ids: list[str] = []
-            if isinstance(previous, str):
-                previous_ids = [previous]
-            elif isinstance(previous, (list, tuple)):
-                previous_ids = [str(item) for item in previous]
-
-            for old_entity_id in previous_ids:
-                if not old_entity_id or old_entity_id == entry.entity_id:
-                    continue
-                await self.store.async_record_entity_id_change(
-                    old_entity_id,
-                    entry.entity_id,
-                    entry.unique_id,
-                )
 
     async def async_check_entity_renames(
         self,
