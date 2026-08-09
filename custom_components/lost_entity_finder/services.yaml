@@ -12,19 +12,26 @@ find_entity_references:
 
 create_manual_repair:
   name: Create Manual Repair
-  description: Create a repair for a provided old/new entity ID pair.
+  description: Create a repair for one old/new entity ID pair, or record a bulk renames map and rescan.
   fields:
     old_entity_id:
       name: Old Entity ID
       description: The old (lost) entity ID currently referenced in configs.
-      required: true
+      required: false
       example: sensor.old_name
       selector:
         text:
     new_entity_id:
       name: New Entity ID
       description: The replacement entity ID that should be written.
-      required: true
+      required: false
       example: sensor.new_name
       selector:
         text:
+    renames:
+      name: Renames
+      description: Bulk mapping of old entity IDs to new entity IDs. Use this instead of old_entity_id/new_entity_id for bulk renames.
+      required: false
+      example: '{"light.old": "light.new", "climate.upstairs": "climate.upstairs_aircon"}'
+      selector:
+        object:

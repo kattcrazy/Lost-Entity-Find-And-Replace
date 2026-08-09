@@ -29,6 +29,8 @@ Detect lost entity references after entity ID changes in Home Assistant. When yo
 
 On setup you can enable Auto-Replace (bulk fix). Default is off. Change this anytime via Settings → Devices & services → Lost Entity Finder → Configure.
 
+You can also set the maximum number of tracked entity ID changes (default 1000). Raise this if you bulk-rename many entities at once.
+
 Some types of helpers, YAML-only config, and third-party `.storage` files such as HACS integrations will require manual updating. These are flagged in the repair and cannot be auto-replaced. **Auto Replace All Lost Entity Repairs** skips repairs that are manual-only.
 
 ### Entities
@@ -61,13 +63,25 @@ data:
   entity_id: light.name
 ```
 
-Use `lost_entity_finder.create_manual_repair` to create a repair from a supplied old/new entity ID pair. You can then choose to ignore, or auto-replace all instances from the repair.
+Use `lost_entity_finder.create_manual_repair` to create a repair from a supplied old/new entity ID pair, or pass a bulk `renames` map after a large entity ID rename. You can then choose to ignore, or auto-replace all instances from each repair.
+
+Single pair:
 
 ```yaml
 service: lost_entity_finder.create_manual_repair
 data:
   old_entity_id: light.old_name
   new_entity_id: light.new_name
+```
+
+Bulk renames (for example after the entity registry bulk rename tool):
+
+```yaml
+service: lost_entity_finder.create_manual_repair
+data:
+  renames:
+    climate.upstairs: climate.upstairs_aircon
+    light.spare_bulb_4: light.summer_s_main_bulb
 ```
 
 ## License

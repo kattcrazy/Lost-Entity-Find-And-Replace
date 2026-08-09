@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bootstrap  # noqa: F401
 
-from lost_entity_finder.const import MAX_PENDING_CHANGES
+from lost_entity_finder.const import DEFAULT_MAX_PENDING_CHANGES
 from lost_entity_finder.store import EntityFinderStore
 
 
@@ -24,6 +24,7 @@ class EntityFinderStoreTests(unittest.IsolatedAsyncioTestCase):
         self.store.hass = MagicMock()
         self.store._pending = {}
         self.store._ignored = set()
+        self.store._max_pending_changes = DEFAULT_MAX_PENDING_CHANGES
         self.store._pending_store = MagicMock()
         self.store._pending_store.async_save = AsyncMock()
         self.store._ignored_store = MagicMock()
@@ -53,7 +54,7 @@ class EntityFinderStoreTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_pending_cap_drops_oldest(self) -> None:
         """Pending changes should stay under the configured cap."""
-        for index in range(MAX_PENDING_CHANGES + 3):
+        for index in range(DEFAULT_MAX_PENDING_CHANGES + 3):
             await self.store.async_record_entity_id_change(
                 f"sensor.old_{index:02d}",
                 f"sensor.new_{index:02d}",
@@ -63,9 +64,11 @@ class EntityFinderStoreTests(unittest.IsolatedAsyncioTestCase):
             )
 
         self.store._enforce_pending_cap()
-        self.assertEqual(len(self.store._pending), MAX_PENDING_CHANGES)
+        self.assertEqual(len(self.store._pending), DEFAULT_MAX_PENDING_CHANGES)
         self.assertNotIn("sensor.old_00", self.store._pending)
-        self.assertIn(f"sensor.old_{MAX_PENDING_CHANGES + 2:02d}", self.store._pending)
+        self.assertIn(
+            f"sensor.old_{DEFAULT_MAX_PENDING_CHANGES + 2:02d}", self.store._pending
+        )
 
     async def test_async_load_reads_changes_key(self) -> None:
         """Storage should use the changes key for pending entity ID changes."""

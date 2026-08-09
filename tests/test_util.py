@@ -14,6 +14,7 @@ import bootstrap  # noqa: F401
 from lost_entity_finder.models import ReferenceHit
 from lost_entity_finder.util import (
     deep_replace_entity_ids,
+    extract_entities_from_value,
     format_references_for_repair,
     merge_reference_hits,
     slugify_issue_id,
@@ -99,9 +100,38 @@ class EntityFinderUtilTests(unittest.TestCase):
         ]
         references, manual_note = format_references_for_repair(hits)
         self.assertIn("UI Automation", references)
-        self.assertIn("manual update required - YAML config", references)
-        self.assertIn("manual update required - helper", references)
+        self.assertIn("manual update required", references)
+        self.assertIn("YAML Automation", references)
+        self.assertIn("Trend Helper", references)
         self.assertIn("2 reference(s) cannot be auto-replaced", manual_note)
+
+    def test_extract_finds_entity_id_dict_keys(self) -> None:
+        """Dict keys that are entity IDs should be detected."""
+        hass = MagicMock()
+        config = {
+            "google_assistant": {
+                "entity_config": {
+                    "event.summer_s_light_switch_action": {"expose": True},
+                    "climate.upstairs": {"expose": True},
+                }
+            }
+        }
+
+        async def _run() -> set[str]:
+            return await extract_entities_from_value(
+                hass,
+                config,
+                {
+                    "event.summer_s_light_switch_action",
+                    "climate.upstairs",
+                },
+            )
+
+        found = asyncio.run(_run())
+        self.assertEqual(
+            found,
+            {"event.summer_s_light_switch_action", "climate.upstairs"},
+        )
 
 
 if __name__ == "__main__":

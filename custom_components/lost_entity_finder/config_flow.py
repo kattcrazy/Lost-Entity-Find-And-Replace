@@ -10,7 +10,15 @@ from homeassistant import config_entries
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 
-from .const import CONF_ENABLE_BULK_FIX, DEFAULT_ENABLE_BULK_FIX, DOMAIN
+from .const import (
+    CONF_ENABLE_BULK_FIX,
+    CONF_MAX_PENDING_CHANGES,
+    DEFAULT_ENABLE_BULK_FIX,
+    DEFAULT_MAX_PENDING_CHANGES,
+    DOMAIN,
+    MAX_MAX_PENDING_CHANGES,
+    MIN_MAX_PENDING_CHANGES,
+)
 
 
 class EntityFinderConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -31,7 +39,10 @@ class EntityFinderConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 data={
                     CONF_ENABLE_BULK_FIX: user_input.get(
                         CONF_ENABLE_BULK_FIX, DEFAULT_ENABLE_BULK_FIX
-                    )
+                    ),
+                    CONF_MAX_PENDING_CHANGES: user_input.get(
+                        CONF_MAX_PENDING_CHANGES, DEFAULT_MAX_PENDING_CHANGES
+                    ),
                 },
             )
 
@@ -41,7 +52,17 @@ class EntityFinderConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 {
                     vol.Optional(
                         CONF_ENABLE_BULK_FIX, default=DEFAULT_ENABLE_BULK_FIX
-                    ): bool
+                    ): bool,
+                    vol.Optional(
+                        CONF_MAX_PENDING_CHANGES,
+                        default=DEFAULT_MAX_PENDING_CHANGES,
+                    ): vol.All(
+                        vol.Coerce(int),
+                        vol.Range(
+                            min=MIN_MAX_PENDING_CHANGES,
+                            max=MAX_MAX_PENDING_CHANGES,
+                        ),
+                    ),
                 }
             ),
         )
@@ -65,16 +86,35 @@ class EntityFinderOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
-        current = self.config_entry.data.get(
+        current_bulk_fix = self.config_entry.data.get(
             CONF_ENABLE_BULK_FIX, DEFAULT_ENABLE_BULK_FIX
         )
+        current_max_pending = self.config_entry.data.get(
+            CONF_MAX_PENDING_CHANGES, DEFAULT_MAX_PENDING_CHANGES
+        )
         if self.config_entry.options:
-            current = self.config_entry.options.get(CONF_ENABLE_BULK_FIX, current)
+            current_bulk_fix = self.config_entry.options.get(
+                CONF_ENABLE_BULK_FIX, current_bulk_fix
+            )
+            current_max_pending = self.config_entry.options.get(
+                CONF_MAX_PENDING_CHANGES, current_max_pending
+            )
 
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(
-                {vol.Optional(CONF_ENABLE_BULK_FIX, default=current): bool}
+                {
+                    vol.Optional(CONF_ENABLE_BULK_FIX, default=current_bulk_fix): bool,
+                    vol.Optional(
+                        CONF_MAX_PENDING_CHANGES, default=current_max_pending
+                    ): vol.All(
+                        vol.Coerce(int),
+                        vol.Range(
+                            min=MIN_MAX_PENDING_CHANGES,
+                            max=MAX_MAX_PENDING_CHANGES,
+                        ),
+                    ),
+                }
             ),
         )
 
@@ -84,3 +124,14 @@ def get_enable_bulk_fix(hass: HomeAssistant, entry: config_entries.ConfigEntry) 
     if entry.options and CONF_ENABLE_BULK_FIX in entry.options:
         return bool(entry.options[CONF_ENABLE_BULK_FIX])
     return bool(entry.data.get(CONF_ENABLE_BULK_FIX, DEFAULT_ENABLE_BULK_FIX))
+
+
+def get_max_pending_changes(
+    hass: HomeAssistant, entry: config_entries.ConfigEntry
+) -> int:
+    """Return the pending entity ID change cap for the config entry."""
+    if entry.options and CONF_MAX_PENDING_CHANGES in entry.options:
+        return int(entry.options[CONF_MAX_PENDING_CHANGES])
+    return int(
+        entry.data.get(CONF_MAX_PENDING_CHANGES, DEFAULT_MAX_PENDING_CHANGES)
+    )

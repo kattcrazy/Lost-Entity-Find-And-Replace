@@ -11,8 +11,8 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.storage import Store
 
 from .const import (
+    DEFAULT_MAX_PENDING_CHANGES,
     MAX_IGNORED,
-    MAX_PENDING_CHANGES,
     STORAGE_KEY_IGNORED,
     STORAGE_KEY_PENDING,
     STORAGE_VERSION,
@@ -25,9 +25,12 @@ _LOGGER = logging.getLogger(__name__)
 class EntityFinderStore:
     """Manage pending entity ID changes and ignored entity IDs."""
 
-    def __init__(self, hass: HomeAssistant) -> None:
+    def __init__(
+        self, hass: HomeAssistant, max_pending_changes: int = DEFAULT_MAX_PENDING_CHANGES
+    ) -> None:
         """Initialize stores."""
         self.hass = hass
+        self._max_pending_changes = max_pending_changes
         self._pending_store = Store(
             hass,
             STORAGE_VERSION,
@@ -146,15 +149,25 @@ class EntityFinderStore:
         self._ignored.clear()
         await self.async_save_ignored()
 
+    @callback
+    def set_max_pending_changes(self, max_pending_changes: int) -> None:
+        """Update the pending entity ID change cap."""
+        self._max_pending_changes = max_pending_changes
+
+    async def async_enforce_pending_cap(self) -> None:
+        """Trim pending changes to the cap and persist."""
+        self._enforce_pending_cap()
+        await self.async_save_pending()
+
     def _enforce_pending_cap(self) -> None:
         """Keep pending entity ID changes under the safety cap."""
-        if len(self._pending) <= MAX_PENDING_CHANGES:
+        if len(self._pending) <= self._max_pending_changes:
             return
         sorted_items = sorted(
             self._pending.items(),
             key=lambda item: item[1].get("changed_at", ""),
         )
-        self._pending = dict(sorted_items[-MAX_PENDING_CHANGES:])
+        self._pending = dict(sorted_items[-self._max_pending_changes :])
 
     @staticmethod
     def parse_entity_id_change(

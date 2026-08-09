@@ -14,6 +14,7 @@ from .scanners import (
     script,
     storage,
     yaml_config,
+    yaml_includes,
 )
 from .util import merge_reference_hits
 
@@ -25,6 +26,7 @@ SCANNERS = (
     group.async_scan,
     helper.async_scan,
     yaml_config.async_scan,
+    yaml_includes.async_scan,
     storage.async_scan,
 )
 

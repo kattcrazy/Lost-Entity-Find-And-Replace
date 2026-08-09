@@ -16,7 +16,7 @@ from homeassistant.helpers import entity_registry as er, issue_registry as ir
 from homeassistant.helpers.debounce import Debouncer
 from homeassistant.helpers.event import async_call_later
 
-from .config_flow import get_enable_bulk_fix
+from .config_flow import get_enable_bulk_fix, get_max_pending_changes
 from .const import DEBOUNCE_COOLDOWN, DOMAIN, TRANSLATION_KEY_LOST
 from .models import ReferenceHit
 from .scanner import async_scan_tracked_references
@@ -33,7 +33,7 @@ class EntityFinderManager:
         """Initialize manager."""
         self.hass = hass
         self.entry = entry
-        self.store = EntityFinderStore(hass)
+        self.store = EntityFinderStore(hass, get_max_pending_changes(hass, entry))
         self._active_issue_ids: set[str] = set()
         self._current_hits: dict[str, list[ReferenceHit]] = {}
         self._unsubs: list[Any] = []
@@ -137,6 +137,7 @@ class EntityFinderManager:
 
     async def _async_run_scan(self) -> None:
         """Scan tracked entity ID changes and sync repairs."""
+        await self.async_backfill_pending_from_registry()
         tracked = self.store.get_tracked_old_ids()
         if not tracked:
             await self._async_sync_repairs({})
@@ -144,6 +145,48 @@ class EntityFinderManager:
 
         self._current_hits = await async_scan_tracked_references(self.hass, tracked)
         await self._async_sync_repairs(self._current_hits)
+
+    async def async_backfill_pending_from_registry(self) -> None:
+        """Record entity ID changes already present in the entity registry."""
+        registry = er.async_get(self.hass)
+        for entry in registry.entities.values():
+            previous = entry.previous_entity_id
+            previous_ids: list[str] = []
+            if isinstance(previous, str):
+                previous_ids = [previous]
+            elif isinstance(previous, (list, tuple)):
+                previous_ids = [str(item) for item in previous]
+
+            for old_entity_id in previous_ids:
+                if not old_entity_id or old_entity_id == entry.entity_id:
+                    continue
+                await self.store.async_record_entity_id_change(
+                    old_entity_id,
+                    entry.entity_id,
+                    entry.unique_id,
+                )
+
+    async def async_record_entity_renames(
+        self, renames: dict[str, str]
+    ) -> dict[str, int]:
+        """Record a bulk old-to-new entity ID map and rescan."""
+        registry = er.async_get(self.hass)
+        imported = 0
+        skipped = 0
+
+        for old_entity_id, new_entity_id in renames.items():
+            old_id = old_entity_id.lower().strip()
+            new_id = new_entity_id.lower().strip()
+            if not old_id or not new_id or old_id == new_id:
+                skipped += 1
+                continue
+            entry = registry.async_get(new_id)
+            unique_id = entry.unique_id if entry else None
+            await self.store.async_record_entity_id_change(old_id, new_id, unique_id)
+            imported += 1
+
+        await self.async_trigger_rescan()
+        return {"imported": imported, "skipped": skipped}
 
     async def _async_sync_repairs(self, hits: dict[str, list[ReferenceHit]]) -> None:
         """Create, update, or delete repair issues."""

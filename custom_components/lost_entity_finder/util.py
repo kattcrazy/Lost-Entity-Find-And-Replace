@@ -14,12 +14,18 @@ else:
     from .models import ReferenceHit  # used at runtime in merge_reference_hits
 
 ENTITY_ID_PATTERN = re.compile(
-    r"^(?:(?:automation|binary_sensor|button|camera|climate|cover|device_tracker|"
-    r"fan|group|humidifier|input_boolean|input_button|input_datetime|input_number|"
-    r"input_select|input_text|light|lock|media_player|number|person|remote|scene|"
-    r"script|select|sensor|sun|switch|text|time|timer|todo|update|vacuum|valve|"
+    r"^(?:(?:ai_task|assist_satellite|automation|binary_sensor|button|camera|"
+    r"climate|conversation|cover|device_tracker|event|fan|group|humidifier|"
+    r"input_boolean|input_button|input_datetime|input_number|input_select|"
+    r"input_text|light|lock|media_player|number|person|remote|scene|script|"
+    r"select|sensor|sun|switch|text|time|timer|todo|update|vacuum|valve|"
     r"water_heater|weather|zone)\.[a-z0-9_]+)$"
 )
+
+
+def looks_like_entity_id(value: str) -> bool:
+    """Return True when a string looks like a Home Assistant entity ID."""
+    return bool(ENTITY_ID_PATTERN.match(value))
 
 TEMPLATE_MARKERS = ("{{", "{%", "{%")
 
@@ -68,7 +74,15 @@ async def extract_entities_from_value(
             and value["entity"] in tracked
         ):
             found.add(value["entity"])
-        for item in value.values():
+        if (
+            "entity_id" in value
+            and isinstance(value["entity_id"], str)
+            and value["entity_id"] in tracked
+        ):
+            found.add(value["entity_id"])
+        for key, item in value.items():
+            if isinstance(key, str) and key in tracked and looks_like_entity_id(key):
+                found.add(key)
             found.update(await extract_entities_from_value(hass, item, tracked))
 
     return found
@@ -110,14 +124,19 @@ async def deep_replace_entity_ids(
     if isinstance(value, dict):
         new_dict: dict[Any, Any] = {}
         for key, item in value.items():
+            new_key = new_entity_id if key == old_entity_id else key
             if key == "entity" and item == old_entity_id:
-                new_dict[key] = new_entity_id
+                new_dict[new_key] = new_entity_id
+                replacements += 1
+                continue
+            if key == "entity_id" and item == old_entity_id:
+                new_dict[new_key] = new_entity_id
                 replacements += 1
                 continue
             new_item, count = await deep_replace_entity_ids(
                 hass, item, old_entity_id, new_entity_id
             )
-            new_dict[key] = new_item
+            new_dict[new_key] = new_item
             replacements += count
         return new_dict, replacements
 

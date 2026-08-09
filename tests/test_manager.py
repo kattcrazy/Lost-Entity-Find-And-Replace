@@ -13,6 +13,7 @@ import bootstrap  # noqa: F401
 
 mock_config_flow = types.ModuleType("lost_entity_finder.config_flow")
 mock_config_flow.get_enable_bulk_fix = lambda _hass, _entry: False
+mock_config_flow.get_max_pending_changes = lambda _hass, _entry: 1000
 sys.modules["lost_entity_finder.config_flow"] = mock_config_flow
 
 mock_scanner = types.ModuleType("lost_entity_finder.scanner")

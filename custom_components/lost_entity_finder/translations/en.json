@@ -5,7 +5,8 @@
         "title": "Lost Entity Finder",
         "description": "Detect lost entity references after entity ID changes and raise repairs with direct links to each location.",
         "data": {
-          "enable_bulk_fix": "Enable Auto-Replace (bulk fix)"
+          "enable_bulk_fix": "Enable Auto-Replace (bulk fix)",
+          "max_pending_changes": "Maximum tracked entity ID changes"
         }
       }
     },
@@ -18,7 +19,8 @@
       "init": {
         "title": "Lost Entity Finder options",
         "data": {
-          "enable_bulk_fix": "Enable Auto-Replace (bulk fix)"
+          "enable_bulk_fix": "Enable Auto-Replace (bulk fix)",
+          "max_pending_changes": "Maximum tracked entity ID changes"
         }
       }
     }
