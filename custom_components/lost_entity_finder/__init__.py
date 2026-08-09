@@ -10,48 +10,26 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers import issue_registry as ir
 
 from . import repairs  # noqa: F401
-from .config_flow import get_enable_bulk_fix, get_max_pending_changes
-from .const import DOMAIN, TRANSLATION_KEY_LOST
+from .config_flow import get_max_pending_changes
+from .const import DOMAIN
 from .entity_platform import EntityFinderEntityPlatform
 from .manager import EntityFinderManager
 from .scanner import async_scan_tracked_references
-from .util import format_references_for_repair, slugify_issue_id
+from .util import format_references_for_repair
 
 _LOGGER = logging.getLogger(__name__)
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 SERVICE_FIND_REFERENCES = "find_entity_references"
-SERVICE_CREATE_MANUAL_REPAIR = "create_manual_repair"
+SERVICE_CHECK_ENTITY_ID_PAIR = "check_entity_id_pair"
 SERVICE_SCHEMA_FIND_REFERENCES = vol.Schema({vol.Required("entity_id"): cv.entity_id})
-
-
-def _validate_create_manual_repair(data: dict) -> dict:
-    """Require either a single old/new pair or a bulk renames map."""
-    has_pair = "old_entity_id" in data and "new_entity_id" in data
-    has_bulk = "renames" in data
-    if has_pair and has_bulk:
-        raise vol.Invalid("Provide either old_entity_id/new_entity_id or renames, not both.")
-    if not has_pair and not has_bulk:
-        raise vol.Invalid("Provide old_entity_id/new_entity_id or renames.")
-    if has_pair and (
-        "old_entity_id" not in data or "new_entity_id" not in data
-    ):
-        raise vol.Invalid("Both old_entity_id and new_entity_id are required.")
-    return data
-
-
-SERVICE_SCHEMA_CREATE_MANUAL_REPAIR = vol.All(
-    vol.Schema(
-        {
-            vol.Optional("old_entity_id"): cv.entity_id,
-            vol.Optional("new_entity_id"): cv.entity_id,
-            vol.Optional("renames"): vol.Schema({str: str}),
-        }
-    ),
-    _validate_create_manual_repair,
+SERVICE_SCHEMA_CHECK_ENTITY_ID_PAIR = vol.Schema(
+    {
+        vol.Required("renames"): vol.Schema({str: str}),
+        vol.Optional("create_repair_without_references", default=False): cv.boolean,
+    }
 )
 
 
@@ -78,15 +56,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _handle_service,
             schema=SERVICE_SCHEMA_FIND_REFERENCES,
         )
-    if not hass.services.has_service(DOMAIN, SERVICE_CREATE_MANUAL_REPAIR):
-        async def _handle_manual_repair(call: ServiceCall) -> None:
-            await _async_handle_create_manual_repair_service(hass, call)
+    if not hass.services.has_service(DOMAIN, SERVICE_CHECK_ENTITY_ID_PAIR):
+        async def _handle_check_entity_id_pair(call: ServiceCall) -> None:
+            await _async_handle_check_entity_id_pair_service(hass, call)
 
         hass.services.async_register(
             DOMAIN,
-            SERVICE_CREATE_MANUAL_REPAIR,
-            _handle_manual_repair,
-            schema=SERVICE_SCHEMA_CREATE_MANUAL_REPAIR,
+            SERVICE_CHECK_ENTITY_ID_PAIR,
+            _handle_check_entity_id_pair,
+            schema=SERVICE_SCHEMA_CHECK_ENTITY_ID_PAIR,
         )
     await hass.config_entries.async_forward_entry_setups(entry, ["sensor", "button"])
     entry.async_on_unload(entry.add_update_listener(_async_update_options))
@@ -114,7 +92,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN].pop(entry.entry_id, None)
     if not hass.data[DOMAIN]:
         hass.services.async_remove(DOMAIN, SERVICE_FIND_REFERENCES)
-        hass.services.async_remove(DOMAIN, SERVICE_CREATE_MANUAL_REPAIR)
+        hass.services.async_remove(DOMAIN, SERVICE_CHECK_ENTITY_ID_PAIR)
     return True
 
 
@@ -145,70 +123,36 @@ async def _async_handle_find_references_service(
     )
 
 
-async def _async_handle_create_manual_repair_service(
+async def _async_handle_check_entity_id_pair_service(
     hass: HomeAssistant, call: ServiceCall
 ) -> None:
-    """Create repair(s) for provided old/new entity ID pair(s)."""
+    """Check old/new entity ID pair(s) and sync repairs."""
     renames = call.data.get("renames")
-    if isinstance(renames, dict):
-        manager = _get_manager(hass)
-        if manager is None:
-            raise HomeAssistantError("Lost Entity Finder is not loaded.")
+    if not isinstance(renames, dict) or not renames:
+        raise HomeAssistantError("renames must be a non-empty old-to-new entity ID map.")
 
-        result = await manager.async_record_entity_renames(renames)
-        from homeassistant.components.persistent_notification import async_create
+    manager = _get_manager(hass)
+    if manager is None:
+        raise HomeAssistantError("Lost Entity Finder is not loaded.")
 
-        async_create(
-            hass,
-            (
-                f"Recorded {result['imported']} entity ID rename(s). "
-                f"Skipped {result['skipped']} invalid entry(s). "
-                "Repairs are syncing now."
-            ),
-            title=f"{DOMAIN}: create manual repair",
-            notification_id=f"{DOMAIN}_create_manual_repair_bulk",
-        )
-        return
+    create_repair_without_references = bool(
+        call.data.get("create_repair_without_references", False)
+    )
+    result = await manager.async_check_entity_renames(
+        renames,
+        create_repair_without_references=create_repair_without_references,
+    )
+    from homeassistant.components.persistent_notification import async_create
 
-    old_entity_id = str(call.data["old_entity_id"]).lower()
-    new_entity_id = str(call.data["new_entity_id"]).lower()
-    if old_entity_id == new_entity_id:
-        raise HomeAssistantError("old_entity_id and new_entity_id must be different.")
-
-    hits_by_entity = await async_scan_tracked_references(hass, {old_entity_id})
-    hits = hits_by_entity.get(old_entity_id, [])
-    if not hits:
-        raise HomeAssistantError(
-            f"No references found for '{old_entity_id}' in supported scan targets."
-        )
-
-    references_md, manual_note = format_references_for_repair(hits)
-    bulk_fix_hint = ""
-    for entry in hass.config_entries.async_entries(DOMAIN):
-        if not get_enable_bulk_fix(hass, entry):
-            bulk_fix_hint = "_(Auto-Replace is disabled in integration settings.)_"
-        break
-
-    issue_id = f"manual_{slugify_issue_id(old_entity_id)}_{new_entity_id.replace('.', '_')}"
-    ir.async_create_issue(
+    async_create(
         hass,
-        DOMAIN,
-        issue_id,
-        is_fixable=True,
-        is_persistent=False,
-        severity=ir.IssueSeverity.WARNING,
-        translation_key=TRANSLATION_KEY_LOST,
-        data={
-            "old_entity_id": old_entity_id,
-            "new_entity_id": new_entity_id,
-        },
-        translation_placeholders={
-            "old_entity_id": old_entity_id,
-            "new_entity_id": new_entity_id,
-            "references": references_md,
-            "manual_note": f"{manual_note}\n\n" if manual_note else "",
-            "bulk_fix_hint": bulk_fix_hint,
-        },
+        (
+            f"Checked {result['imported']} entity ID pair(s). "
+            f"Skipped {result['skipped']} invalid entry(s). "
+            "Repairs are syncing now."
+        ),
+        title=f"{DOMAIN}: check entity ID pair",
+        notification_id=f"{DOMAIN}_check_entity_id_pair",
     )
 
 

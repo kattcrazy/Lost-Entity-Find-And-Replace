@@ -26,3 +26,4 @@ class PendingEntityIdChange:
     new_entity_id: str
     changed_at: str
     unique_id: str | None = None
+    keep_without_references: bool = False

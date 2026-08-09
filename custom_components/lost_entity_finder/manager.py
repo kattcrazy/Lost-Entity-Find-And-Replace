@@ -166,10 +166,13 @@ class EntityFinderManager:
                     entry.unique_id,
                 )
 
-    async def async_record_entity_renames(
-        self, renames: dict[str, str]
+    async def async_check_entity_renames(
+        self,
+        renames: dict[str, str],
+        *,
+        create_repair_without_references: bool = False,
     ) -> dict[str, int]:
-        """Record a bulk old-to-new entity ID map and rescan."""
+        """Record old-to-new entity ID map and rescan for lost references."""
         registry = er.async_get(self.hass)
         imported = 0
         skipped = 0
@@ -182,7 +185,12 @@ class EntityFinderManager:
                 continue
             entry = registry.async_get(new_id)
             unique_id = entry.unique_id if entry else None
-            await self.store.async_record_entity_id_change(old_id, new_id, unique_id)
+            await self.store.async_record_entity_id_change(
+                old_id,
+                new_id,
+                unique_id,
+                keep_without_references=create_repair_without_references,
+            )
             imported += 1
 
         await self.async_trigger_rescan()
@@ -199,8 +207,42 @@ class EntityFinderManager:
             self._awaiting_scan.discard(old_entity_id)
 
             if not references:
-                ir.async_delete_issue(self.hass, DOMAIN, issue_id)
-                await self.store.async_remove_pending(old_entity_id)
+                if pending.keep_without_references:
+                    references_md = (
+                        "_No references found in supported scan targets._"
+                    )
+                    manual_note = ""
+                    bulk_fix_hint = (
+                        ""
+                        if enable_bulk_fix
+                        else "_(Auto-Replace is disabled in integration settings.)_"
+                    )
+                    seen_issue_ids.add(issue_id)
+                    ir.async_create_issue(
+                        self.hass,
+                        DOMAIN,
+                        issue_id,
+                        is_fixable=True,
+                        is_persistent=False,
+                        severity=ir.IssueSeverity.WARNING,
+                        translation_key=TRANSLATION_KEY_LOST,
+                        data={
+                            "old_entity_id": old_entity_id,
+                            "new_entity_id": pending.new_entity_id,
+                        },
+                        translation_placeholders={
+                            "old_entity_id": old_entity_id,
+                            "new_entity_id": pending.new_entity_id,
+                            "references": references_md,
+                            "manual_note": manual_note,
+                            "bulk_fix_hint": bulk_fix_hint,
+                        },
+                    )
+                    if self.store.is_ignored(old_entity_id):
+                        ir.async_ignore_issue(self.hass, DOMAIN, issue_id, True)
+                else:
+                    ir.async_delete_issue(self.hass, DOMAIN, issue_id)
+                    await self.store.async_remove_pending(old_entity_id)
                 continue
 
             seen_issue_ids.add(issue_id)

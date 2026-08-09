@@ -69,6 +69,7 @@ class EntityFinderStore:
                 new_entity_id=data["new_entity_id"],
                 changed_at=data.get("changed_at", ""),
                 unique_id=data.get("unique_id"),
+                keep_without_references=bool(data.get("keep_without_references")),
             )
         return result
 
@@ -95,6 +96,8 @@ class EntityFinderStore:
         old_entity_id: str,
         new_entity_id: str,
         unique_id: str | None = None,
+        *,
+        keep_without_references: bool = False,
     ) -> None:
         """Record an entity ID change, collapsing chains when needed."""
         now = datetime.now(timezone.utc).isoformat()
@@ -111,11 +114,14 @@ class EntityFinderStore:
             self._pending[old_entity_id]["changed_at"] = now
             if unique_id:
                 self._pending[old_entity_id]["unique_id"] = unique_id
+            if keep_without_references:
+                self._pending[old_entity_id]["keep_without_references"] = True
         else:
             self._pending[old_entity_id] = {
                 "new_entity_id": new_entity_id,
                 "changed_at": now,
                 "unique_id": unique_id,
+                "keep_without_references": keep_without_references,
             }
 
         self._enforce_pending_cap()

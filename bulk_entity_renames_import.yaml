@@ -1,6 +1,7 @@
 # Paste into Developer Tools -> Actions (YAML mode)
-service: lost_entity_finder.create_manual_repair
+service: lost_entity_finder.check_entity_id_pair
 data:
+  create_repair_without_references: false
   renames:
     automation.daily_colour_change: automation.morning_automation
     binary_sensor.nest_protect_upstairs_battery_health: binary_sensor.upstairs_smoke_detector_battery_health

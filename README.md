@@ -63,25 +63,27 @@ data:
   entity_id: light.name
 ```
 
-Use `lost_entity_finder.create_manual_repair` to create a repair from a supplied old/new entity ID pair, or pass a bulk `renames` map after a large entity ID rename. You can then choose to ignore, or auto-replace all instances from each repair.
+Use `lost_entity_finder.check_entity_id_pair` to check one or more old-to-new entity ID pairs and sync repairs. Pass pairs in `renames` (one entry for a single pair, many for bulk). Set `create_repair_without_references` to create a repair even when no stale references are found.
 
 Single pair:
 
 ```yaml
-service: lost_entity_finder.create_manual_repair
+service: lost_entity_finder.check_entity_id_pair
 data:
-  old_entity_id: light.old_name
-  new_entity_id: light.new_name
+  renames:
+    light.old_name: light.new_name
+  create_repair_without_references: false
 ```
 
 Bulk renames (for example after the entity registry bulk rename tool):
 
 ```yaml
-service: lost_entity_finder.create_manual_repair
+service: lost_entity_finder.check_entity_id_pair
 data:
   renames:
     climate.upstairs: climate.upstairs_aircon
     light.spare_bulb_4: light.summer_s_main_bulb
+  create_repair_without_references: false
 ```
 
 ## License
