@@ -139,25 +139,13 @@ async def _async_handle_check_entity_id_pair_service(
         call.data.get("create_repair_without_references", False)
     )
     try:
-        result = await manager.async_check_entity_renames(
+        await manager.async_check_entity_renames(
             renames,
             create_repair_without_references=create_repair_without_references,
         )
     except Exception as err:
         _LOGGER.exception("check_entity_id_pair failed")
         raise HomeAssistantError(f"check_entity_id_pair failed: {err}") from err
-    from homeassistant.components.persistent_notification import async_create
-
-    async_create(
-        hass,
-        (
-            f"Checked {result['imported']} entity ID pair(s). "
-            f"Skipped {result['skipped']} invalid entry(s). "
-            "Repairs are syncing now."
-        ),
-        title=f"{DOMAIN}: check entity ID pair",
-        notification_id=f"{DOMAIN}_check_entity_id_pair",
-    )
 
 
 def _get_manager(hass: HomeAssistant) -> EntityFinderManager | None:

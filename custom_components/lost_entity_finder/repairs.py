@@ -123,6 +123,9 @@ class LostEntityReferencesRepairFlow(RepairsFlow):
         self, user_input: dict[str, str] | None = None
     ) -> data_entry_flow.FlowResult:
         """Choose Ignore or Auto-Replace."""
+        self._hits = await self._async_get_hits()
+        if not self._can_offer_auto_replace(self._hits):
+            return await self.async_step_manual_only(user_input)
         return await self.async_step_choose_action(user_input)
 
     async def async_step_choose_action(
@@ -135,27 +138,20 @@ class LostEntityReferencesRepairFlow(RepairsFlow):
             action = user_input.get("action")
             if action == "ignore":
                 return await self.async_step_ignore()
-            if action == "manual":
-                return await self.async_step_manual_only()
             if action == "auto_replace":
-                if not self._can_offer_auto_replace(self._hits):
-                    return await self.async_step_manual_only()
                 return await self.async_step_preview()
-
-        actions: dict[str, str] = {}
-        default_action = "ignore"
-        if self._can_offer_auto_replace(self._hits):
-            actions["auto_replace"] = "Auto-Replace"
-            default_action = "auto_replace"
-        else:
-            actions["manual"] = "Close (update manually)"
-            default_action = "manual"
-        actions["ignore"] = "Ignore"
 
         return self.async_show_form(
             step_id="choose_action",
             data_schema=vol.Schema(
-                {vol.Required("action", default=default_action): vol.In(actions)}
+                {
+                    vol.Required("action", default="auto_replace"): vol.In(
+                        {
+                            "auto_replace": "Auto-Replace",
+                            "ignore": "Ignore",
+                        }
+                    )
+                }
             ),
             description_placeholders=self._placeholders(self._hits),
         )
@@ -275,8 +271,7 @@ class LostEntityReferencesRepairFlow(RepairsFlow):
         self._preview = preview
 
         if not self._hits:
-            self._result_summary = "No references found to update for this repair."
-            return await self.async_step_result()
+            return self.async_create_entry(title="", data={})
 
         if user_input is not None:
             return await self.async_step_apply()
@@ -294,8 +289,7 @@ class LostEntityReferencesRepairFlow(RepairsFlow):
     ) -> data_entry_flow.FlowResult:
         """Apply Auto-Replace."""
         if not self._hits:
-            self._result_summary = "No references found to update for this repair."
-            return await self.async_step_result()
+            return self.async_create_entry(title="", data={})
 
         result = await async_apply_replace(
             self._hass,
@@ -312,18 +306,4 @@ class LostEntityReferencesRepairFlow(RepairsFlow):
         if get_manual_hits(self._hits):
             return await self.async_step_manual_remaining()
 
-        return await self.async_step_result()
-
-    async def async_step_result(
-        self, user_input: dict[str, str] | None = None
-    ) -> data_entry_flow.FlowResult:
-        """Show Auto-Replace result."""
-        if user_input is not None:
-            return self.async_create_entry(title="", data={})
-        return self.async_show_form(
-            step_id="result",
-            data_schema=vol.Schema({}),
-            description_placeholders=self._placeholders(
-                self._hits, {"result_summary": self._result_summary}
-            ),
-        )
+        return self.async_create_entry(title="", data={})

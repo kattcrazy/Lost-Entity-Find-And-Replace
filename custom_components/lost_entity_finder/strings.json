@@ -43,14 +43,14 @@
           },
           "manual_only": {
             "title": "Manual update required for {old_entity_id}",
-            "description": "References to `{old_entity_id}` (changed to `{new_entity_id}`) must be updated manually:\n\n{references}\n\n{manual_note}Use the links above to edit each location. Choose **Fix later** to keep this repair open, **Mark as completed** when finished, or **Ignore** to hide it.",
+            "description": "References to `{old_entity_id}` (changed to `{new_entity_id}`) must be updated manually:\n\n{references}\n\n{manual_note}",
             "data": {
               "action": "Action"
             }
           },
           "manual_remaining": {
             "title": "Manual updates still required for {old_entity_id}",
-            "description": "{result_summary}These locations still need manual updates from `{old_entity_id}` to `{new_entity_id}`:\n\n{references}\n\n{manual_note}Use the links above to edit each location. Choose **Fix later** to keep this repair open, **Mark as completed** when finished, or **Ignore** to hide it.",
+            "description": "{result_summary}These locations still need manual updates from `{old_entity_id}` to `{new_entity_id}`:\n\n{references}\n\n{manual_note}",
             "data": {
               "action": "Action"
             }

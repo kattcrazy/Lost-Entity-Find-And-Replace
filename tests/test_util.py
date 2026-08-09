@@ -133,6 +133,81 @@ class EntityFinderUtilTests(unittest.TestCase):
             {"event.summer_s_light_switch_action", "climate.upstairs"},
         )
 
+    def test_extract_finds_entity_id_in_jinja_string_comparison(self) -> None:
+        """Entity IDs compared as Jinja strings should be detected."""
+        hass = MagicMock()
+        config = {
+            "variables": {
+                "notify_target": (
+                    "{% if trigger.entity_id == 'device_tracker.google_pixel_9a' %}\n"
+                    "  notify.mobile_app_joel_s_pixel\n"
+                    "{% else %}\n"
+                    "  notify.naomi_s_s24\n"
+                    "{% endif %}"
+                )
+            }
+        }
+
+        async def _run() -> set[str]:
+            return await extract_entities_from_value(
+                hass,
+                config,
+                {"device_tracker.google_pixel_9a"},
+            )
+
+        found = asyncio.run(_run())
+        self.assertEqual(found, {"device_tracker.google_pixel_9a"})
+
+    def test_extract_finds_notify_entity_in_action(self) -> None:
+        """Notify entities used as action targets should be detected."""
+        hass = MagicMock()
+        config = {
+            "actions": [
+                {
+                    "action": "notify.mobile_app_joel_s_pixel",
+                    "data": {"message": "hello"},
+                }
+            ]
+        }
+
+        async def _run() -> set[str]:
+            return await extract_entities_from_value(
+                hass,
+                config,
+                {"notify.mobile_app_joel_s_pixel"},
+            )
+
+        found = asyncio.run(_run())
+        self.assertEqual(found, {"notify.mobile_app_joel_s_pixel"})
+
+    def test_extract_finds_notify_entity_in_template_variable(self) -> None:
+        """Notify entities referenced in template variables should be detected."""
+        hass = MagicMock()
+        config = {
+            "variables": {
+                "notify_target": (
+                    "{% if trigger.entity_id == 'person.naomi' %}\n"
+                    "  notify.naomi_s_s24\n"
+                    "{% else %}\n"
+                    "  notify.mobile_app_joel_s_pixel\n"
+                    "{% endif %}"
+                )
+            }
+        }
+
+        async def _run() -> set[str]:
+            return await extract_entities_from_value(
+                hass,
+                config,
+                {"notify.mobile_app_joel_s_pixel", "notify.naomi_s_s24"},
+            )
+
+        found = asyncio.run(_run())
+        self.assertEqual(
+            found,
+            {"notify.mobile_app_joel_s_pixel", "notify.naomi_s_s24"},
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

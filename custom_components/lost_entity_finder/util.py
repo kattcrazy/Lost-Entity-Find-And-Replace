@@ -17,7 +17,7 @@ ENTITY_ID_PATTERN = re.compile(
     r"^(?:(?:ai_task|assist_satellite|automation|binary_sensor|button|camera|"
     r"climate|conversation|cover|device_tracker|event|fan|group|humidifier|"
     r"input_boolean|input_button|input_datetime|input_number|input_select|"
-    r"input_text|light|lock|media_player|number|person|remote|scene|script|"
+    r"input_text|light|lock|media_player|notify|number|person|remote|scene|script|"
     r"select|sensor|sun|switch|text|time|timer|todo|update|vacuum|valve|"
     r"water_heater|weather|zone)\.[a-z0-9_]+)$"
 )
@@ -55,9 +55,10 @@ async def extract_entities_from_value(
                     if entity_id in tracked:
                         found.add(entity_id)
             except Exception:  # noqa: BLE001 - template parse errors are skipped
-                for entity_id in tracked:
-                    if entity_id in value:
-                        found.add(entity_id)
+                pass
+            for entity_id in tracked:
+                if _entity_id_in_text(value, entity_id):
+                    found.add(entity_id)
         elif value in tracked:
             found.add(value)
         else:
@@ -80,6 +81,10 @@ async def extract_entities_from_value(
             and value["entity_id"] in tracked
         ):
             found.add(value["entity_id"])
+        for action_key in ("action", "service"):
+            action_value = value.get(action_key)
+            if isinstance(action_value, str) and action_value in tracked:
+                found.add(action_value)
         for key, item in value.items():
             if isinstance(key, str) and key in tracked and looks_like_entity_id(key):
                 found.add(key)
