@@ -38,7 +38,6 @@ Lost Entity Finder adds the following entities:
 
 | Entity | Type | Description |
 |--------|------|-------------|
-| Ignored Lost Entity Repairs | Sensor | Count of lost entity repairs that are currently ignored |
 | Rescan for Lost Entity Repairs | Button | Rescan for lost entity references and sync repairs |
 | Ignore All Lost Entity Repairs | Button | Ignore all active lost entity repairs |
 | Restore Ignored Lost Entity Repairs | Button | Clear all ignored lost entity repairs and rescan |
@@ -47,6 +46,8 @@ Lost Entity Finder adds the following entities:
 ### Repairs
 
 After an entity ID change, open Settings → System → Repairs. Each lost entity ID will have a repair listing all locations that still reference it.
+
+When Auto-Replace is enabled, Auto-Replace is the default action. If some references can be updated automatically and others cannot, the repair runs Auto-Replace first, then shows the remaining manual locations with Fix later (default), Mark as completed, or Ignore. Manual-only repairs offer the same choices. Fix later closes the dialog and leaves the repair in the list until you finish the manual updates or pick another option.
 
 ### Services
 

@@ -66,7 +66,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _handle_check_entity_id_pair,
             schema=SERVICE_SCHEMA_CHECK_ENTITY_ID_PAIR,
         )
-    await hass.config_entries.async_forward_entry_setups(entry, ["sensor", "button"])
+    await hass.config_entries.async_forward_entry_setups(entry, ["button"])
     entry.async_on_unload(entry.add_update_listener(_async_update_options))
     return True
 
@@ -82,9 +82,7 @@ async def _async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload Lost Entity Find And Replace."""
-    unload_ok = await hass.config_entries.async_unload_platforms(
-        entry, ["sensor", "button"]
-    )
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, ["button"])
     if not unload_ok:
         return False
     manager: EntityFinderManager = entry.runtime_data

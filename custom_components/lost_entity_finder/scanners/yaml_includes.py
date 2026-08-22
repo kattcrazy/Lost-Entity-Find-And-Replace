@@ -24,6 +24,19 @@ INCLUDED_YAML_FILES: tuple[tuple[str, str], ...] = (
 )
 
 
+def _load_included_yaml(path: Path) -> Any | None:
+    """Load and parse an included YAML file (blocking I/O)."""
+    if not path.is_file():
+        return None
+
+    try:
+        contents = path.read_text(encoding="utf-8")
+        return yaml.safe_load(contents)
+    except Exception:  # noqa: BLE001 - skip unreadable yaml files
+        _LOGGER.debug("Skipping included YAML scan for %s", path.name, exc_info=True)
+        return None
+
+
 async def async_scan(
     hass: HomeAssistant, tracked: set[str]
 ) -> dict[str, list[ReferenceHit]]:
@@ -32,16 +45,7 @@ async def async_scan(
 
     for filename, label in INCLUDED_YAML_FILES:
         path = Path(hass.config.path(filename))
-        if not path.is_file():
-            continue
-
-        try:
-            contents = await hass.async_add_executor_job(path.read_text, "utf-8")
-            data = yaml.safe_load(contents)
-        except Exception:  # noqa: BLE001 - skip unreadable yaml files
-            _LOGGER.debug("Skipping included YAML scan for %s", filename, exc_info=True)
-            continue
-
+        data = await hass.async_add_executor_job(_load_included_yaml, path)
         if data is None:
             continue
 

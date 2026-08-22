@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import logging
-from functools import partial
 from pathlib import Path
 
 from homeassistant.core import HomeAssistant
@@ -52,15 +51,12 @@ def storage_edit_url_from_filename(filename: str) -> str:
     return "/config/integrations/dashboard"
 
 
-async def async_scan(
-    hass: HomeAssistant, tracked: set[str]
-) -> dict[str, list[ReferenceHit]]:
-    """Scan third-party and uncaptured .storage JSON for tracked entity IDs."""
-    hits: dict[str, list[ReferenceHit]] = {}
-    storage_dir = Path(hass.config.path(".storage"))
+def _load_storage_files(storage_dir: Path) -> list[tuple[str, object]]:
+    """Load and parse scannable .storage JSON files (blocking I/O)."""
     if not storage_dir.is_dir():
-        return hits
+        return []
 
+    loaded: list[tuple[str, object]] = []
     for path in sorted(storage_dir.iterdir()):
         if not path.is_file():
             continue
@@ -78,14 +74,26 @@ async def async_scan(
             continue
 
         try:
-            raw = await hass.async_add_executor_job(
-                partial(path.read_text, encoding="utf-8")
-            )
+            raw = path.read_text(encoding="utf-8")
             data = json.loads(raw)
         except (OSError, UnicodeDecodeError, json.JSONDecodeError):
             _LOGGER.debug("Unable to read .storage file: %s", filename)
             continue
 
+        loaded.append((filename, data))
+
+    return loaded
+
+
+async def async_scan(
+    hass: HomeAssistant, tracked: set[str]
+) -> dict[str, list[ReferenceHit]]:
+    """Scan third-party and uncaptured .storage JSON for tracked entity IDs."""
+    hits: dict[str, list[ReferenceHit]] = {}
+    storage_dir = Path(hass.config.path(".storage"))
+    loaded = await hass.async_add_executor_job(_load_storage_files, storage_dir)
+
+    for filename, data in loaded:
         found = await extract_entities_from_value(hass, data, tracked)
         if not found:
             continue

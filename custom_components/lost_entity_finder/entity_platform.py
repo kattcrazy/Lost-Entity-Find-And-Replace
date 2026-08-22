@@ -30,12 +30,6 @@ class EntityFinderEntityPlatform:
         self._async_add_button_entities = None
         self._auto_replace_button: AutoReplaceAllButton | None = None
 
-    def async_setup_sensor(self, async_add_entities) -> None:
-        """Set up Lost Entity Find & Replace sensors."""
-        from .sensor import IgnoredLostEntitiesSensor
-
-        async_add_entities([IgnoredLostEntitiesSensor(self.manager, self.entry)])
-
     def async_setup_buttons(self, async_add_entities) -> None:
         """Set up Lost Entity Find And Replace buttons."""
         from .button import IgnoreAllButton, RescanLostEntitiesButton, RestoreIgnoredButton
