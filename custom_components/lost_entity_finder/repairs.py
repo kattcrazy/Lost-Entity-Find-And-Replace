@@ -241,20 +241,6 @@ class LostEntityReferencesRepairFlow(RepairsFlow):
         """Close the repair flow and keep the issue open for later."""
         return self.async_create_entry(title="", data={})
 
-    async def async_step_auto_replace_disabled(
-        self, user_input: dict[str, str] | None = None
-    ) -> data_entry_flow.FlowResult:
-        """Explain that Auto-Replace is disabled."""
-        if user_input is not None:
-            return self.async_create_entry(title="", data={})
-        return self.async_show_form(
-            step_id="auto_replace_disabled",
-            data_schema=vol.Schema({}),
-            description_placeholders=self._placeholders(
-                await self._async_get_hits()
-            ),
-        )
-
     async def async_step_preview(
         self, user_input: dict[str, str] | None = None
     ) -> data_entry_flow.FlowResult:

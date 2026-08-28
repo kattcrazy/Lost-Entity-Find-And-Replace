@@ -37,10 +37,6 @@
               "action": "Action"
             }
           },
-          "auto_replace_disabled": {
-            "title": "Auto-Replace disabled",
-            "description": "Auto-Replace is disabled in Lost Entity Finder integration settings. Enable bulk fix under **Settings → Devices & services → Lost Entity Finder → Configure**, or use the edit links above to update references manually."
-          },
           "manual_only": {
             "title": "Manual update required for {old_entity_id}",
             "description": "References to `{old_entity_id}` (changed to `{new_entity_id}`) must be updated manually:\n\n{references}\n\n{manual_note}",

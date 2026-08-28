@@ -1,3 +1,6 @@
 # Python bytecode/cache
 __pycache__/
 *.py[cod]
+
+# Local bulk-rename imports (user-specific entity ID maps)
+bulk_entity_renames_import.yaml

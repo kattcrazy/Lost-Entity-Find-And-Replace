@@ -33,6 +33,12 @@ ha_core = _ensure_module("homeassistant.core")
 ha_core.callback = _passthrough_callback
 ha_core.HomeAssistant = MagicMock
 ha_core.Event = MagicMock
+ha_core.valid_entity_id = lambda value: (
+    isinstance(value, str)
+    and "." in value
+    and not value.startswith(".")
+    and " " not in value
+)
 
 ha_helpers = _ensure_module("homeassistant.helpers")
 ha_helpers.template = _ensure_module("homeassistant.helpers.template")
@@ -54,6 +60,7 @@ ha_helpers.issue_registry.IssueSeverity = MagicMock()
 ha_components = _ensure_module("homeassistant.components")
 ha_components.automation = _ensure_module("homeassistant.components.automation")
 ha_components.automation.DOMAIN = "automation"
+ha_components.automation.EVENT_AUTOMATION_RELOADED = "automation_reloaded"
 ha_components.script = _ensure_module("homeassistant.components.script")
 ha_components.script.DOMAIN = "script"
 ha_components.homeassistant = _ensure_module("homeassistant.components.homeassistant")
@@ -61,6 +68,7 @@ ha_components.homeassistant.scene = _ensure_module(
     "homeassistant.components.homeassistant.scene"
 )
 ha_components.homeassistant.scene.DOMAIN = "scene"
+ha_components.homeassistant.scene.EVENT_SCENE_RELOADED = "scene_reloaded"
 ha_components.lovelace = _ensure_module("homeassistant.components.lovelace")
 ha_components.lovelace.DOMAIN = "lovelace"
 ha_components.lovelace.const = _ensure_module("homeassistant.components.lovelace.const")
@@ -73,6 +81,7 @@ ha_config_entries.OptionsFlow = type("OptionsFlow", (), {})
 
 ha_const = _ensure_module("homeassistant.const")
 ha_const.EVENT_COMPONENT_LOADED = "component_loaded"
+ha_const.EVENT_CORE_CONFIG_UPDATE = "core_config_updated"
 ha_const.EVENT_HOMEASSISTANT_STARTED = "homeassistant_started"
 
 ha_exceptions = _ensure_module("homeassistant.exceptions")

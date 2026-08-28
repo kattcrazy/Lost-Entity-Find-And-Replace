@@ -139,10 +139,10 @@ class EntityFinderUtilTests(unittest.TestCase):
         config = {
             "variables": {
                 "notify_target": (
-                    "{% if trigger.entity_id == 'device_tracker.google_pixel_9a' %}\n"
-                    "  notify.mobile_app_joel_s_pixel\n"
+                    "{% if trigger.entity_id == 'device_tracker.example_phone' %}\n"
+                    "  notify.mobile_app_user_one\n"
                     "{% else %}\n"
-                    "  notify.naomi_s_s24\n"
+                    "  notify.mobile_app_user_two\n"
                     "{% endif %}"
                 )
             }
@@ -152,11 +152,11 @@ class EntityFinderUtilTests(unittest.TestCase):
             return await extract_entities_from_value(
                 hass,
                 config,
-                {"device_tracker.google_pixel_9a"},
+                {"device_tracker.example_phone"},
             )
 
         found = asyncio.run(_run())
-        self.assertEqual(found, {"device_tracker.google_pixel_9a"})
+        self.assertEqual(found, {"device_tracker.example_phone"})
 
     def test_extract_finds_notify_entity_in_action(self) -> None:
         """Notify entities used as action targets should be detected."""
@@ -164,7 +164,7 @@ class EntityFinderUtilTests(unittest.TestCase):
         config = {
             "actions": [
                 {
-                    "action": "notify.mobile_app_joel_s_pixel",
+                    "action": "notify.mobile_app_user_one",
                     "data": {"message": "hello"},
                 }
             ]
@@ -174,11 +174,11 @@ class EntityFinderUtilTests(unittest.TestCase):
             return await extract_entities_from_value(
                 hass,
                 config,
-                {"notify.mobile_app_joel_s_pixel"},
+                {"notify.mobile_app_user_one"},
             )
 
         found = asyncio.run(_run())
-        self.assertEqual(found, {"notify.mobile_app_joel_s_pixel"})
+        self.assertEqual(found, {"notify.mobile_app_user_one"})
 
     def test_extract_finds_notify_entity_in_template_variable(self) -> None:
         """Notify entities referenced in template variables should be detected."""
@@ -186,10 +186,10 @@ class EntityFinderUtilTests(unittest.TestCase):
         config = {
             "variables": {
                 "notify_target": (
-                    "{% if trigger.entity_id == 'person.naomi' %}\n"
-                    "  notify.naomi_s_s24\n"
+                    "{% if trigger.entity_id == 'person.example_user' %}\n"
+                    "  notify.mobile_app_user_two\n"
                     "{% else %}\n"
-                    "  notify.mobile_app_joel_s_pixel\n"
+                    "  notify.mobile_app_user_one\n"
                     "{% endif %}"
                 )
             }
@@ -199,13 +199,13 @@ class EntityFinderUtilTests(unittest.TestCase):
             return await extract_entities_from_value(
                 hass,
                 config,
-                {"notify.mobile_app_joel_s_pixel", "notify.naomi_s_s24"},
+                {"notify.mobile_app_user_one", "notify.mobile_app_user_two"},
             )
 
         found = asyncio.run(_run())
         self.assertEqual(
             found,
-            {"notify.mobile_app_joel_s_pixel", "notify.naomi_s_s24"},
+            {"notify.mobile_app_user_one", "notify.mobile_app_user_two"},
         )
 
 

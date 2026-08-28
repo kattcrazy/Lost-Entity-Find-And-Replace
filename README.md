@@ -1,11 +1,11 @@
 # <img src="custom_components/lost_entity_finder/brand/icon.png" alt="Lost Entity Finder icon" width="36" /> Lost Entity Finder <img src="custom_components/lost_entity_finder/brand/icon.png" alt="Lost Entity Finder icon" width="36" />
 
-Detect lost entity references after entity ID changes in Home Assistant. When you change an entity ID (for example `sensor.door` -> `sensor.window`), Lost Entity Finder finds automations, scripts, scenes, dashboards, groups, helpers, and yaml files that still use the old ID and raises one repair per changed entity ID with direct links to each location, along with options to ignore or auto-replace in bulk.
+Detect lost entity references after entity ID changes in Home Assistant. When you change an entity ID (for example `sensor.door` -> `sensor.window`), Lost Entity Finder finds automations, scripts, scenes, dashboards, groups, helpers, YAML configuration, and third-party `.storage` files that still use the old ID and raises one repair per changed entity ID with direct links to each location, along with options to ignore or auto-replace in bulk.
 
 <img width="402"  alt="image" src="https://github.com/user-attachments/assets/98351145-6ec8-46fd-9057-d2b98d69a7f9" />
 <img width="382" alt="image" src="https://github.com/user-attachments/assets/eb268543-cb18-464d-80ce-4c96b8d5f6b8" />
 
-> Please note, Lost Entity Finder only handles entity ID changes, including 'reset's. It does not handle deleted entities or unavailable entities. In addition, it cannot check your ESP devices, or any other third party thing that relies on your HA entities.
+> Please note, Lost Entity Finder only handles entity ID changes, including resets. It does not handle deleted entities or unavailable entities. In addition, it cannot check your ESP devices, or any other third party thing that relies on your HA entities.
 
 ## Installation
 

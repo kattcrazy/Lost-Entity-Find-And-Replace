@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING, Any
 
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, valid_entity_id
 from homeassistant.helpers import template
 
 if TYPE_CHECKING:
@@ -13,21 +13,11 @@ if TYPE_CHECKING:
 else:
     from .models import ReferenceHit  # used at runtime in merge_reference_hits
 
-ENTITY_ID_PATTERN = re.compile(
-    r"^(?:(?:ai_task|assist_satellite|automation|binary_sensor|button|camera|"
-    r"climate|conversation|cover|device_tracker|event|fan|group|humidifier|"
-    r"input_boolean|input_button|input_datetime|input_number|input_select|"
-    r"input_text|light|lock|media_player|notify|number|person|remote|scene|script|"
-    r"select|sensor|sun|switch|text|time|timer|todo|update|vacuum|valve|"
-    r"water_heater|weather|zone)\.[a-z0-9_]+)$"
-)
-
-
 def looks_like_entity_id(value: str) -> bool:
     """Return True when a string looks like a Home Assistant entity ID."""
-    return bool(ENTITY_ID_PATTERN.match(value))
+    return valid_entity_id(value)
 
-TEMPLATE_MARKERS = ("{{", "{%", "{%")
+TEMPLATE_MARKERS = ("{{", "{%")
 
 
 def slugify_issue_id(old_entity_id: str) -> str:

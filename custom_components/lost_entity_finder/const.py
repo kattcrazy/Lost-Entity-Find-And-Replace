@@ -19,7 +19,10 @@ DEBOUNCE_COOLDOWN = 3
 
 TRANSLATION_KEY_LOST = "lost_entity_references"
 
-DATA_MANAGER = "manager"
+RESCAN_COMPONENT_DOMAINS = frozenset(
+    {"automation", "script", "scene", "lovelace", "group"}
+)
+REGISTRY_RESCAN_DOMAINS = frozenset({"script", "group"})
 
 ENTITY_AUTO_REPLACE_ALL = "auto_replace_all"
 ENTITY_IGNORE_ALL = "ignore_all"

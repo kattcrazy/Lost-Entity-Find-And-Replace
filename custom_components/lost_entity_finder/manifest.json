@@ -7,8 +7,9 @@
   "dependencies": [],
   "documentation": "https://github.com/kattcrazy/Lost-Entity-Finder",
   "integration_type": "service",
-  "iot_class": "local_polling",
+  "iot_class": "calculated",
   "issue_tracker": "https://github.com/kattcrazy/Lost-Entity-Finder/issues",
   "requirements": [],
-  "version": "1.6.20"
+  "version": "1.6.27",
+  "homeassistant": "2026.3.0"
 }

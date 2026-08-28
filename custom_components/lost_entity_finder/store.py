@@ -197,11 +197,6 @@ class EntityFinderStore:
 
         return old_entity_id, new_entity_id
 
-    @callback
-    def handle_registry_event(self, event_data: dict[str, Any]) -> bool:
-        """Return True when the registry event is an entity ID change."""
-        return self.parse_entity_id_change(event_data) is not None
-
     async def async_apply_registry_event(self, event_data: dict[str, Any]) -> None:
         """Apply an entity ID change from a registry event."""
         parsed = self.parse_entity_id_change(event_data)

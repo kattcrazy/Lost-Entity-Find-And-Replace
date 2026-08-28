@@ -16,12 +16,11 @@ from ..util import extract_entities_from_value
 _LOGGER = logging.getLogger(__name__)
 
 INCLUDED_YAML_FILES: tuple[tuple[str, str], ...] = (
-    ("automations.yaml", "automations.yaml"),
-    ("scripts.yaml", "scripts.yaml"),
-    ("scenes.yaml", "scenes.yaml"),
     ("sensors.yaml", "sensors.yaml"),
     ("templates.yaml", "templates.yaml"),
 )
+# automations.yaml, scripts.yaml, and scenes.yaml are covered by dedicated scanners.
+# templates.yaml and sensors.yaml are separate from UI helpers and merged-config paths.
 
 
 def _load_included_yaml(path: Path) -> Any | None:
