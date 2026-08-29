@@ -15,6 +15,7 @@ from . import repairs  # noqa: F401
 from .config_flow import get_max_pending_changes
 from .const import DOMAIN
 from .entity_platform import EntityFinderEntityPlatform
+from .entry_helpers import get_loaded_manager
 from .manager import EntityFinderManager
 from .scanner import async_scan_tracked_references
 from .util import format_references_for_repair
@@ -129,7 +130,7 @@ async def _async_handle_check_entity_id_pair_service(
     if not isinstance(renames, dict) or not renames:
         raise HomeAssistantError("renames must be a non-empty old-to-new entity ID map.")
 
-    manager = _get_manager(hass)
+    manager = get_loaded_manager(hass)
     if manager is None:
         raise HomeAssistantError("Lost Entity Finder is not loaded.")
 
@@ -145,11 +146,3 @@ async def _async_handle_check_entity_id_pair_service(
         _LOGGER.exception("check_entity_id_pair failed")
         raise HomeAssistantError(f"check_entity_id_pair failed: {err}") from err
 
-
-def _get_manager(hass: HomeAssistant) -> EntityFinderManager | None:
-    """Return the active Lost Entity Finder manager."""
-    for entry in hass.config_entries.async_entries(DOMAIN):
-        manager = entry.runtime_data
-        if isinstance(manager, EntityFinderManager):
-            return manager
-    return None

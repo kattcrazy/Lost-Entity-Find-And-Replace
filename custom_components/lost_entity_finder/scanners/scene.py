@@ -4,11 +4,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from homeassistant.components.homeassistant import scene
+from homeassistant.components.scene import DOMAIN as SCENE_DOMAIN
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_component import DATA_INSTANCES
 
 from ..models import ReferenceHit
+from .component_helpers import is_auto_replaceable_component_entity
 from ..util import extract_entities_from_value
 
 
@@ -18,10 +19,10 @@ async def async_scan(
     """Scan scenes."""
     hits: dict[str, list[ReferenceHit]] = {}
     instances = hass.data.get(DATA_INSTANCES, {})
-    if scene.DOMAIN not in instances:
+    if SCENE_DOMAIN not in instances:
         return hits
 
-    component = instances[scene.DOMAIN]
+    component = instances[SCENE_DOMAIN]
     for entity in component.entities:
         found: set[str] = set(getattr(entity, "referenced_entities", []) or [])
         found.update(
@@ -39,7 +40,7 @@ async def async_scan(
             edit_url=f"/config/scene/edit/{unique_id}",
             resource_id=str(unique_id),
             extra={"entity_id": entity.entity_id},
-            auto_replaceable=bool(getattr(entity, "raw_config", None)),
+            auto_replaceable=is_auto_replaceable_component_entity(entity),
         )
         for entity_id in found:
             hits.setdefault(entity_id, []).append(hit)

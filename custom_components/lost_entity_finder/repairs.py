@@ -11,6 +11,7 @@ from homeassistant.helpers import issue_registry as ir
 
 from .config_flow import get_enable_bulk_fix
 from .const import DOMAIN
+from .entry_helpers import get_loaded_manager, iter_loaded_entries
 from .manager import EntityFinderManager
 from .models import ReferenceHit
 from .replacer import async_apply_replace, async_preview_replace
@@ -52,15 +53,11 @@ class LostEntityReferencesRepairFlow(RepairsFlow):
 
     def _get_manager(self) -> EntityFinderManager | None:
         """Return the active manager."""
-        for entry in self._hass.config_entries.async_entries(DOMAIN):
-            manager = entry.runtime_data
-            if isinstance(manager, EntityFinderManager):
-                return manager
-        return None
+        return get_loaded_manager(self._hass)
 
     def _bulk_fix_enabled(self) -> bool:
         """Return whether Auto-Replace is enabled in integration settings."""
-        for entry in self._hass.config_entries.async_entries(DOMAIN):
+        for entry in iter_loaded_entries(self._hass):
             return get_enable_bulk_fix(self._hass, entry)
         return False
 

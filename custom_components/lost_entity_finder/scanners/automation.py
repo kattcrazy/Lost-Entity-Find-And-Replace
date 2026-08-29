@@ -9,6 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_component import DATA_INSTANCES
 
 from ..models import ReferenceHit
+from .component_helpers import is_auto_replaceable_component_entity
 from ..util import extract_entities_from_value
 
 
@@ -41,7 +42,7 @@ async def async_scan(
             edit_url=f"/config/automation/edit/{unique_id}",
             resource_id=str(unique_id),
             extra={"entity_id": entity.entity_id},
-            auto_replaceable=bool(getattr(entity, "raw_config", None)),
+            auto_replaceable=is_auto_replaceable_component_entity(entity),
         )
         for entity_id in found:
             hits.setdefault(entity_id, []).append(hit)

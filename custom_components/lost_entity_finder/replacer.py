@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from homeassistant.components import automation, script
-from homeassistant.components.homeassistant import scene
 from homeassistant.components.lovelace import DOMAIN as LOVELACE_DOMAIN
 from homeassistant.components.lovelace.const import ConfigNotFound
+from homeassistant.components.scene import DOMAIN as SCENE_DOMAIN
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_component import DATA_INSTANCES
+from homeassistant.util.file import write_utf8_file_atomic
+from homeassistant.util.yaml import dump
 
 from .models import ReferenceHit
 from .util import dedupe_reference_hits, deep_replace_entity_ids, manual_reference_reason
@@ -115,7 +118,7 @@ async def _replace_hit(
         )
     if hit.resource_type == "scene":
         return await _replace_entity_component_config(
-            hass, scene.DOMAIN, hit.resource_id, old_entity_id, new_entity_id
+            hass, SCENE_DOMAIN, hit.resource_id, old_entity_id, new_entity_id
         )
     if hit.resource_type == "dashboard":
         return await _replace_dashboard(
@@ -144,30 +147,164 @@ async def _replace_entity_component_config(
     for entity in component.entities:
         if str(getattr(entity, "unique_id", "")) != str(resource_id):
             continue
+        if getattr(entity, "referenced_blueprint", None):
+            return False
         raw_config = getattr(entity, "raw_config", None)
-        if not raw_config:
+        source_config = dict(raw_config) if raw_config else None
+        if source_config is None:
+            source_config = await _async_read_component_config(
+                hass, domain, resource_id
+            )
+        if not source_config:
             return False
         new_config, count = await deep_replace_entity_ids(
-            hass, dict(raw_config), old_entity_id, new_entity_id
+            hass, source_config, old_entity_id, new_entity_id
         )
         if count == 0:
             return False
         if domain == automation.DOMAIN:
-            from homeassistant.components.automation import config as automation_config
-
-            await automation_config.async_update(hass, resource_id, new_config)
+            await _async_update_automation_via_config_view(
+                hass, resource_id, new_config
+            )
             return True
         if domain == script.DOMAIN:
-            from homeassistant.components.script import config as script_config
-
-            await script_config.async_update(hass, resource_id, new_config)
+            await _async_update_script_via_config_view(hass, resource_id, new_config)
             return True
-        if domain == scene.DOMAIN:
-            from homeassistant.components.homeassistant.scene import config as scene_config
-
-            await scene_config.async_update(hass, resource_id, new_config)
+        if domain == SCENE_DOMAIN:
+            await _async_update_scene_via_config_view(hass, resource_id, new_config)
             return True
     return False
+
+
+async def _async_read_component_config(
+    hass: HomeAssistant, domain: str, resource_id: str
+) -> dict[str, Any] | None:
+    """Load automation/script/scene config from the standard config editor paths."""
+    from homeassistant.const import CONF_ID
+
+    if domain == automation.DOMAIN:
+        view = _automation_config_view()
+        current = await view.read_config(hass)
+    elif domain == script.DOMAIN:
+        view = _script_config_view()
+        current = await view.read_config(hass)
+    elif domain == SCENE_DOMAIN:
+        view = _scene_config_view()
+        current = await view.read_config(hass)
+    else:
+        return None
+
+    for item in current:
+        if str(item.get(CONF_ID)) == str(resource_id):
+            return dict(item)
+    return None
+
+
+def _automation_config_view():
+    """Return the automation config editor view."""
+    from homeassistant.components.automation import DOMAIN as AUTOMATION_DOMAIN
+    from homeassistant.components.automation.config import async_validate_config_item
+    from homeassistant.components.config.automation import EditAutomationConfigView
+    from homeassistant.config import AUTOMATION_CONFIG_PATH
+    from homeassistant.helpers import config_validation as cv
+
+    return EditAutomationConfigView(
+        AUTOMATION_DOMAIN,
+        "config",
+        AUTOMATION_CONFIG_PATH,
+        cv.string,
+        data_validator=async_validate_config_item,
+    )
+
+
+def _script_config_view():
+    """Return the script config editor view."""
+    from homeassistant.components.config.script import EditScriptConfigView
+    from homeassistant.components.script import DOMAIN as SCRIPT_DOMAIN
+    from homeassistant.components.script.config import async_validate_config_item
+    from homeassistant.config import SCRIPT_CONFIG_PATH
+    from homeassistant.helpers import config_validation as cv
+
+    return EditScriptConfigView(
+        SCRIPT_DOMAIN,
+        "config",
+        SCRIPT_CONFIG_PATH,
+        cv.slug,
+        data_validator=async_validate_config_item,
+    )
+
+
+def _scene_config_view():
+    """Return the scene config editor view."""
+    from homeassistant.components.config.scene import EditSceneConfigView, PLATFORM_SCHEMA
+    from homeassistant.config import SCENE_CONFIG_PATH
+    from homeassistant.helpers import config_validation as cv
+
+    return EditSceneConfigView(
+        SCENE_DOMAIN,
+        "config",
+        SCENE_CONFIG_PATH,
+        cv.string,
+        data_schema=PLATFORM_SCHEMA,
+    )
+
+
+async def _async_write_yaml_config(
+    hass: HomeAssistant, rel_path: str, data: dict | list
+) -> None:
+    """Write a YAML config file atomically."""
+
+    def _write() -> None:
+        contents = dump(data)
+        write_utf8_file_atomic(hass.config.path(rel_path), contents)
+
+    await hass.async_add_executor_job(_write)
+
+
+async def _async_update_automation_via_config_view(
+    hass: HomeAssistant, automation_id: str, new_config: dict[str, Any]
+) -> None:
+    """Update an automation using the config editor backend."""
+    from homeassistant.components.automation import DOMAIN as AUTOMATION_DOMAIN
+    from homeassistant.config import AUTOMATION_CONFIG_PATH
+    from homeassistant.const import CONF_ID, SERVICE_RELOAD
+
+    view = _automation_config_view()
+    current = await view.read_config(hass)
+    view._write_value(hass, current, automation_id, new_config)
+    await _async_write_yaml_config(hass, AUTOMATION_CONFIG_PATH, current)
+    await hass.services.async_call(
+        AUTOMATION_DOMAIN, SERVICE_RELOAD, {CONF_ID: automation_id}, blocking=True
+    )
+
+
+async def _async_update_script_via_config_view(
+    hass: HomeAssistant, script_id: str, new_config: dict[str, Any]
+) -> None:
+    """Update a script using the config editor backend."""
+    from homeassistant.components.script import DOMAIN as SCRIPT_DOMAIN
+    from homeassistant.config import SCRIPT_CONFIG_PATH
+    from homeassistant.const import SERVICE_RELOAD
+
+    view = _script_config_view()
+    current = await view.read_config(hass)
+    view._write_value(hass, current, script_id, new_config)
+    await _async_write_yaml_config(hass, SCRIPT_CONFIG_PATH, current)
+    await hass.services.async_call(SCRIPT_DOMAIN, SERVICE_RELOAD, blocking=True)
+
+
+async def _async_update_scene_via_config_view(
+    hass: HomeAssistant, scene_id: str, new_config: dict[str, Any]
+) -> None:
+    """Update a scene using the config editor backend."""
+    from homeassistant.config import SCENE_CONFIG_PATH
+    from homeassistant.const import SERVICE_RELOAD
+
+    view = _scene_config_view()
+    current = await view.read_config(hass)
+    view._write_value(hass, current, scene_id, new_config)
+    await _async_write_yaml_config(hass, SCENE_CONFIG_PATH, current)
+    await hass.services.async_call(SCENE_DOMAIN, SERVICE_RELOAD, blocking=True)
 
 
 async def _replace_dashboard(

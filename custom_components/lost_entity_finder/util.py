@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from typing import TYPE_CHECKING, Any
 
@@ -12,6 +13,8 @@ if TYPE_CHECKING:
     from .models import ReferenceHit
 else:
     from .models import ReferenceHit  # used at runtime in merge_reference_hits
+
+_LOGGER = logging.getLogger(__name__)
 
 def looks_like_entity_id(value: str) -> bool:
     """Return True when a string looks like a Home Assistant entity ID."""
@@ -40,12 +43,12 @@ async def extract_entities_from_value(
         if is_template_string(value):
             try:
                 tmpl = template.Template(value, hass)
-                info = await tmpl.async_render_to_info(hass, {})
+                info = tmpl.async_render_to_info({})
                 for entity_id in info.entities:
                     if entity_id in tracked:
                         found.add(entity_id)
             except Exception:  # noqa: BLE001 - template parse errors are skipped
-                pass
+                _LOGGER.debug("Template entity extraction failed", exc_info=True)
             for entity_id in tracked:
                 if _entity_id_in_text(value, entity_id):
                     found.add(entity_id)

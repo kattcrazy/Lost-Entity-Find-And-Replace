@@ -4,3 +4,7 @@ __pycache__/
 
 # Local bulk-rename imports (user-specific entity ID maps)
 bulk_entity_renames_import.yaml
+
+# Unused full-size brand assets (not read by Home Assistant)
+custom_components/lost_entity_finder/brand/full_size_dark_icon.png
+custom_components/lost_entity_finder/brand/full_size_light_icon.png

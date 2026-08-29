@@ -6,7 +6,7 @@ import asyncio
 import sys
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bootstrap  # noqa: F401
@@ -207,6 +207,55 @@ class EntityFinderUtilTests(unittest.TestCase):
             found,
             {"notify.mobile_app_user_one", "notify.mobile_app_user_two"},
         )
+
+    def test_extract_uses_async_render_to_info_for_templates(self) -> None:
+        """Template entity detection should call async_render_to_info without hass."""
+        hass = MagicMock()
+        template_value = "{{ states('sensor.example_target') | float }}"
+
+        class _RenderInfo:
+            entities = ("sensor.example_target",)
+
+        with patch("lost_entity_finder.util.template.Template") as mock_template_cls:
+            mock_tmpl = MagicMock()
+            mock_tmpl.async_render_to_info.return_value = _RenderInfo()
+            mock_template_cls.return_value = mock_tmpl
+
+            async def _run() -> set[str]:
+                return await extract_entities_from_value(
+                    hass,
+                    template_value,
+                    {"sensor.example_target"},
+                )
+
+            found = asyncio.run(_run())
+
+        mock_tmpl.async_render_to_info.assert_called_once_with({})
+        self.assertEqual(found, {"sensor.example_target"})
+
+    def test_extract_finds_template_entity_without_literal_substring(self) -> None:
+        """Entities resolved only via render_to_info should still be detected."""
+        hass = MagicMock()
+        template_value = "{{ states(entity_id) }}"
+
+        class _RenderInfo:
+            entities = ("sensor.hidden_target",)
+
+        with patch("lost_entity_finder.util.template.Template") as mock_template_cls:
+            mock_tmpl = MagicMock()
+            mock_tmpl.async_render_to_info.return_value = _RenderInfo()
+            mock_template_cls.return_value = mock_tmpl
+
+            async def _run() -> set[str]:
+                return await extract_entities_from_value(
+                    hass,
+                    template_value,
+                    {"sensor.hidden_target"},
+                )
+
+            found = asyncio.run(_run())
+
+        self.assertEqual(found, {"sensor.hidden_target"})
 
 
 if __name__ == "__main__":
