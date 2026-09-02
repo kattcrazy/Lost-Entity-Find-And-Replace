@@ -9,7 +9,7 @@ Detect lost entity references after entity ID changes in Home Assistant. When yo
 
 ## Installation
 
-### HACS (recommended)
+### HACS Custom Repo (recommended)
 
 1. Add `https://github.com/kattcrazy/Lost-Entity-Finder` as a custom repository in HACS (category: Integration)
 2. Search for Lost Entity Finder & click Download
